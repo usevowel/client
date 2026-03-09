@@ -1,0 +1,79 @@
+{% comment %}
+  Vowel Customer Voice Assistant Widget Block
+  This block provides a floating voice assistant widget for Shopify themes
+  Uses the @vowel.to/client web component
+{% endcomment %}
+
+{%- comment -%}
+  Load the Vowel voice widget standalone bundle from CDN (Cloudflare R2)
+  This includes everything needed for the voice agent to work
+  
+  Note: We add a version parameter to ensure cache busting when files are updated.
+  The R2 files use short cache times (5 minutes) with must-revalidate to ensure
+  browsers get the latest version while still allowing reasonable caching.
+{%- endcomment -%}
+{%- assign vowel_version = "1.0.4" -%}
+<link rel="stylesheet" href="https://assets.codetek.us/apps/vowel/vowel-voice-widget.css?v={{ vowel_version }}">
+<script src="https://assets.codetek.us/apps/vowel/vowel-voice-widget.min.js?v={{ vowel_version }}" defer></script>
+
+{%- comment -%}
+  The web component will auto-register when the script loads
+  Configure it with Shopify preset for automatic dual-adapter setup,
+  route discovery, and automation with floating cursor
+{%- endcomment -%}
+<vowel-voice-widget
+  app-id="{{ block.settings.app_id }}"
+  preset="shopify"
+  store-url="{{ shop.url }}"
+  position="{{ block.settings.position }}"
+  {% if block.settings.show_transcripts %}show-transcripts="true"{% endif %}
+></vowel-voice-widget>
+
+{% schema %}
+{
+  "name": "Vowel Voice Assistant",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_id",
+      "label": "Vowel App ID",
+      "info": "Your Vowel application ID from the Vowel platform",
+      "default": "default-app"
+    },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "Widget Position",
+      "options": [
+        {
+          "value": "bottom-right",
+          "label": "Bottom Right"
+        },
+        {
+          "value": "bottom-left",
+          "label": "Bottom Left"
+        },
+        {
+          "value": "top-right",
+          "label": "Top Right"
+        },
+        {
+          "value": "top-left",
+          "label": "Top Left"
+        }
+      ],
+      "default": "bottom-right",
+      "info": "Corner position for the floating voice button"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_transcripts",
+      "label": "Show Transcript Panel",
+      "info": "Enable a panel to view conversation transcripts",
+      "default": false
+    }
+  ]
+}
+{% endschema %}
+

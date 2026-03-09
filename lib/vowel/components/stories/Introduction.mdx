@@ -1,0 +1,84 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Introduction" />
+
+# Welcome to Vowel Client Library Storybook
+
+This Storybook showcases the components and features of the **@vowel.to/client** library - a framework-agnostic voice agent library powered by Google Gemini Live API and OpenAI Realtime API.
+
+## 🎯 What is Vowel?
+
+Vowel enables developers to add AI-powered voice agents to any web application. It provides:
+
+- 🎙️ **Real-time Voice Interface**: Powered by Google Gemini Live API and OpenAI Realtime API
+- 🧭 **Smart Navigation**: AI understands app structure and navigates automatically
+- ⚡ **Custom Actions**: Define business logic that AI can execute via voice commands
+- 🤖 **Page Automation**: Voice-controlled interaction with page elements (click, type, search)
+- 🔌 **Framework Agnostic**: Works with React, Vue, Next.js, Laravel, and vanilla JS
+- 📦 **Multiple Formats**: React components, web components, standalone JS bundles
+
+## 🚀 Quick Start
+
+### Installation
+
+```bash
+npm install @vowel.to/client
+# or
+bun add @vowel.to/client
+```
+
+### Basic Usage
+
+```tsx
+import { VowelProvider, VowelMicrophone } from '@vowel.to/client/react';
+import { VowelClient } from '@vowel.to/client';
+
+const client = new VowelClient({
+  appId: 'your-app-id',
+  token: 'your-token',
+});
+
+function App() {
+  return (
+    <VowelProvider client={client}>
+      <VowelMicrophone />
+    </VowelProvider>
+  );
+}
+```
+
+## 📚 Components
+
+Explore the components in the sidebar to see:
+
+- **VowelMicrophone** - Embedded microphone button component with all states:
+  - Disconnected (gray)
+  - Connecting (spinner)
+  - Connected/Idle (green)
+  - User Speaking (blue, pulsing)
+  - AI Thinking (yellow)
+  - AI Speaking (purple, pulsing)
+  
+- **FloatingMicButton** - Floating microphone button with all states:
+  - Disconnected
+  - Connecting
+  - Connected/Idle
+  - User Speaking
+  - AI Thinking
+  - AI Speaking
+  - Resuming
+  - Multiple positioning options (bottom-right, bottom-left, top-right, top-left)
+
+- **VowelAgent** - Full-featured voice agent with floating UI
+- **VowelProvider** - React context provider for voice client
+
+## 🔗 Resources
+
+- [Documentation](https://github.com/vowel-life/vowel.to)
+- [API Reference](./?path=/docs/introduction--docs)
+- [GitHub Repository](https://github.com/vowel-life/vowel.to)
+
+---
+
+**Happy Voice Building!** 🎤✨
+

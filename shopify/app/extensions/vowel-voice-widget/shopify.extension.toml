@@ -1,0 +1,8 @@
+api_version = "2024-01"
+
+[[extensions]]
+uid = "c5a1c40a-b96e-eb9e-5eb2-7284ad80770ff7265d65"
+type = "theme_app_extension"
+name = "Vowel Voice Widget"
+handle = "vowel-voice-widget"
+

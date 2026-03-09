@@ -1,0 +1,19 @@
+/**
+ * Vowel Voice Agent Styles (Tailwind v4)
+ *
+ * We intentionally do NOT import preflight/base to avoid clobbering host app styles.
+ * Only theme + utilities are emitted for package consumers.
+ */
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@config "../../../tailwind.config.ts";
+
+/* Explicit sources make class extraction deterministic for library builds. */
+@source "../**/*.{ts,tsx}";
+@source "../../**/*.{ts,tsx}";
+@source "../../../platforms/**/*.{ts,tsx}";
+@source "../../../react.ts";
+@source "../../../standalone.ts";
+@source "../../../web-component.ts";

@@ -1,0 +1,90 @@
+{
+  "vowel_voice_assistant": {
+    "name": "Vowel Voice Assistant",
+    "description": "Customer-facing voice assistant for Shopify stores"
+  },
+  "voice_widget": {
+    "microphone_button": {
+      "title": "Click to activate voice assistant"
+    },
+    "interface": {
+      "title": "Voice Assistant",
+      "close_button": "Close voice assistant",
+      "status": {
+        "ready": "Voice assistant ready",
+        "listening": "Listening... Speak now",
+        "processing": "Processing command...",
+        "error": "Error occurred",
+        "loading": "Loading..."
+      }
+    },
+    "suggestions": {
+      "title": "Try saying:",
+      "buttons": {
+        "search_products": "Show me running shoes",
+        "sale_items": "What's on sale?",
+        "add_to_cart": "Add to cart",
+        "checkout": "Go to checkout"
+      }
+    },
+    "controls": {
+      "mute": "Mute microphone",
+      "settings": "Settings"
+    }
+  },
+  "routes": {
+    "home": "Store homepage",
+    "products": "Browse all products",
+    "collections": "Browse collections",
+    "cart": "Shopping cart",
+    "search": "Search products",
+    "account": "Customer account",
+    "product": "View {{productName}} product",
+    "collection": "Browse {{collectionName}} collection",
+    "page": "{{pageName}} page",
+    "blog": "{{postTitle}} blog post"
+  },
+  "actions": {
+    "search_products": {
+      "description": "Search for products using natural language",
+      "parameters": {
+        "query": "What are you looking for?"
+      }
+    },
+    "go_to_collection": {
+      "description": "Navigate to a product collection",
+      "parameters": {
+        "collection": "Collection name"
+      }
+    },
+    "add_to_cart": {
+      "description": "Add current product to cart"
+    },
+    "go_to_page": {
+      "description": "Navigate to a store page",
+      "parameters": {
+        "page": "Page name or description"
+      }
+    },
+    "get_store_info": {
+      "description": "Get store information",
+      "parameters": {
+        "info": "What information do you need?"
+      }
+    }
+  },
+  "errors": {
+    "sitemap_fetch_failed": "Unable to load store information. Voice assistant will use basic commands.",
+    "action_not_found": "Action '{{actionName}}' not found",
+    "navigation_failed": "Unable to navigate to {{destination}}",
+    "speech_not_supported": "Speech recognition not available in this browser",
+    "microphone_denied": "Microphone access denied. Please allow microphone access to use voice commands."
+  },
+  "messages": {
+    "welcome": "Voice assistant activated. Try saying \"Show me running shoes\"",
+    "command_executed": "Command executed successfully",
+    "command_failed": "Sorry, I didn't understand that command",
+    "loading": "Loading voice assistant...",
+    "ready": "Ready for voice commands"
+  }
+}

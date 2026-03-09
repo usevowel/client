@@ -1,0 +1,30 @@
+{
+  "vowel_voice_assistant": {
+    "name": "Vowel Voice Assistant",
+    "settings": {
+      "enabled": {
+        "label": "Enable Voice Assistant",
+        "info": "Show the floating voice assistant widget on your store pages"
+      },
+      "position": {
+        "label": "Widget Position",
+        "info": "Choose where the voice assistant button appears on the page",
+        "options": {
+          "bottom-right": "Bottom Right",
+          "bottom-left": "Bottom Left",
+          "top-right": "Top Right",
+          "top-left": "Top Left"
+        }
+      },
+      "size": {
+        "label": "Widget Size",
+        "info": "Adjust the size of the voice assistant widget",
+        "options": {
+          "small": "Small",
+          "medium": "Medium",
+          "large": "Large"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vowel Voice Agent - Nag & Terms Example</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+    }
+    .container {
+      background: white;
+      border-radius: 1rem;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      color: #667eea;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle {
+      color: #6b7280;
+      margin-bottom: 2rem;
+    }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .feature-card {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+    }
+    .feature-card h3 {
+      color: #374151;
+      margin-top: 0;
+      margin-bottom: 0.5rem;
+    }
+    .feature-card p {
+      color: #6b7280;
+      font-size: 0.875rem;
+      line-height: 1.5;
+    }
+    .code-block {
+      background: #1f2937;
+      color: #f3f4f6;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.875rem;
+      margin: 1rem 0;
+    }
+    .controls {
+      background: #fef3c7;
+      border: 2px solid #fbbf24;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    .controls h3 {
+      margin-top: 0;
+      color: #92400e;
+    }
+    button {
+      background: #667eea;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #5568d3;
+    }
+    button.danger {
+      background: #ef4444;
+    }
+    button.danger:hover {
+      background: #dc2626;
+    }
+    .status {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #f9fafb;
+      border-radius: 0.5rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎤 Vowel Voice Agent</h1>
+    <p class="subtitle">Voice Nag & Terms/Privacy Modal Example</p>
+
+    <div class="feature-grid">
+      <div class="feature-card">
+        <h3>✨ Voice Nag</h3>
+        <p>A friendly promotional message that introduces users to the voice agent. Auto-dismisses on first use or manual acknowledgment.</p>
+      </div>
+      <div class="feature-card">
+        <h3>📋 Terms & Privacy</h3>
+        <p>Require users to accept terms and privacy policy before using the voice agent. Blocks usage until accepted.</p>
+      </div>
+      <div class="feature-card">
+        <h3>💾 LocalStorage</h3>
+        <p>All interactions are persisted to localStorage so users don't see the same prompts again.</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <h3>🎮 Test Controls</h3>
+      <p style="color: #92400e; font-size: 0.875rem; margin-bottom: 1rem;">
+        Use these buttons to reset localStorage and test the features again:
+      </p>
+      <button onclick="clearNagState()">Clear Nag State</button>
+      <button onclick="clearTermsState()">Clear Terms State</button>
+      <button class="danger" onclick="clearAllState()">Clear All State</button>
+      <button onclick="checkState()">Check Current State</button>
+      <div class="status" id="status">Status: Ready</div>
+    </div>
+
+    <h2>📝 Implementation</h2>
+    <p>This page uses the Vowel voice agent web component with both voice nag and terms/privacy modal enabled:</p>
+
+    <div class="code-block">
+&lt;vowel-voice-widget
+  app-id="your-app-id"
+  preset="shopify"
+  position="bottom-right"
+  show-transcripts="true"
+  
+  enable-nag="true"
+  nag-title="Try Voice Shopping! 🎤"
+  nag-description="Get personalized help finding products, checking out, and more—all hands-free."
+  
+  enable-terms-modal="true"
+  terms-url="https://example.com/terms"
+  privacy-url="https://example.com/privacy"
+&gt;&lt;/vowel-voice-widget&gt;
+    </div>
+
+    <h2>🔍 How It Works</h2>
+    <ol>
+      <li><strong>First Visit:</strong> You'll see the voice nag message wrapping the mic button</li>
+      <li><strong>Click "Got it":</strong> The nag dismisses and won't show again</li>
+      <li><strong>Click Mic Button:</strong> If terms modal is enabled, you'll see the terms/privacy modal</li>
+      <li><strong>Accept Terms:</strong> Voice agent connects and terms acceptance is stored</li>
+      <li><strong>Reload Page:</strong> Neither prompt will show again (stored in localStorage)</li>
+    </ol>
+  </div>
+
+  <!-- Vowel Voice Widget -->
+  <!-- Note: Replace with actual app-id and ensure the script is loaded -->
+  <vowel-voice-widget
+    app-id="your-app-id"
+    preset="shopify"
+    position="bottom-right"
+    show-transcripts="true"
+    
+    enable-nag="true"
+    nag-title="Try Voice Shopping! 🎤"
+    nag-description="Get personalized help finding products, checking out, and more—all hands-free with our voice assistant."
+    nag-button-text="Got it"
+    nag-storage-key-prefix="vowel-demo-nag"
+    
+    enable-terms-modal="true"
+    terms-modal-title="Terms & Privacy"
+    terms-modal-description="Before using the voice assistant, please review and accept our terms of service and privacy policy."
+    terms-url="https://example.com/terms"
+    privacy-url="https://example.com/privacy"
+    terms-accept-button-text="Accept & Continue"
+    terms-allow-decline="false"
+    terms-storage-key-prefix="vowel-demo-terms"
+  ></vowel-voice-widget>
+
+  <script>
+    // Test control functions
+    function clearNagState() {
+      localStorage.removeItem('vowel-demo-nag-dismissed');
+      localStorage.removeItem('vowel-demo-nag-used');
+      updateStatus('Nag state cleared! Reload the page to see the nag again.');
+    }
+
+    function clearTermsState() {
+      localStorage.removeItem('vowel-demo-terms-accepted');
+      localStorage.removeItem('vowel-demo-terms-timestamp');
+      updateStatus('Terms state cleared! Click the mic button to see the terms modal again.');
+    }
+
+    function clearAllState() {
+      clearNagState();
+      clearTermsState();
+      updateStatus('All state cleared! Reload the page to start fresh.');
+    }
+
+    function checkState() {
+      const nagDismissed = localStorage.getItem('vowel-demo-nag-dismissed');
+      const nagUsed = localStorage.getItem('vowel-demo-nag-used');
+      const termsAccepted = localStorage.getItem('vowel-demo-terms-accepted');
+      const termsTimestamp = localStorage.getItem('vowel-demo-terms-timestamp');
+
+      const status = `
+Current State:
+- Nag Dismissed: ${nagDismissed || 'false'}
+- Nag Used: ${nagUsed || 'false'}
+- Terms Accepted: ${termsAccepted || 'false'}
+- Terms Timestamp: ${termsTimestamp || 'none'}
+      `.trim();
+      
+      updateStatus(status);
+    }
+
+    function updateStatus(message) {
+      const statusEl = document.getElementById('status');
+      statusEl.textContent = message;
+      statusEl.style.background = '#dcfce7';
+      statusEl.style.color = '#166534';
+      
+      setTimeout(() => {
+        statusEl.style.background = '#f9fafb';
+        statusEl.style.color = 'inherit';
+      }, 3000);
+    }
+
+    // Check initial state on load
+    window.addEventListener('load', () => {
+      console.log('Voice Nag & Terms Example loaded');
+      console.log('Note: Replace app-id with your actual Vowel app ID');
+    });
+  </script>
+</body>
+</html>
+

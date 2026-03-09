@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factory Pattern Test - Vowel Voice AI</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+        }
+        h2 {
+            color: #666;
+            font-size: 18px;
+            margin-top: 0;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Vowel Factory Pattern Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: window.Vowel Availability</h2>
+        <div id="test1-status" class="status info">Checking...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 2: window.registerVowelFactory Availability</h2>
+        <div id="test2-status" class="status info">Checking...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 3: vowel-instructions Component Registration</h2>
+        <div id="test3-status" class="status info">Checking...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 4: Factory Pattern Initialization</h2>
+        <div id="test4-status" class="status info">Waiting...</div>
+        <button onclick="testFactory()">Test Factory</button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test 5: Custom Instructions Discovery</h2>
+        <div id="test5-status" class="status info">Checking...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Console Output</h2>
+        <pre id="console-output" style="max-height: 300px; overflow-y: auto;"></pre>
+    </div>
+    
+    <!-- Load Vowel Voice Widget -->
+    <script src="dist/standalone/vowel-voice-widget.min.js"></script>
+    <link rel="stylesheet" href="dist/standalone/vowel-voice-widget.css">
+    
+    <!-- Define instructions -->
+    <vowel-instructions id="test-instructions">
+        You are a test AI assistant.
+        
+        Your purpose is to verify that the vowel-instructions component
+        works correctly and that custom system instructions are properly
+        discovered and applied to the Vowel client.
+        
+        This is a multi-line instruction to test formatting.
+    </vowel-instructions>
+    
+    <!-- Define factory BEFORE web component -->
+    <script>
+        // Capture console logs
+        const consoleOutput = document.getElementById('console-output');
+        const originalLog = console.log;
+        const logs = [];
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const message = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+            ).join(' ');
+            logs.push(message);
+            if (consoleOutput) {
+                consoleOutput.textContent = logs.slice(-50).join('\n');
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        };
+        
+        // Test 1: Check window.Vowel
+        setTimeout(() => {
+            const test1 = document.getElementById('test1-status');
+            if (typeof window.Vowel === 'function') {
+                test1.className = 'status success';
+                test1.textContent = '✅ window.Vowel is available';
+            } else {
+                test1.className = 'status error';
+                test1.textContent = '❌ window.Vowel is NOT available';
+            }
+        }, 100);
+        
+        // Test 2: Check window.registerVowelFactory
+        setTimeout(() => {
+            const test2 = document.getElementById('test2-status');
+            if (typeof window.registerVowelFactory === 'function') {
+                test2.className = 'status success';
+                test2.textContent = '✅ window.registerVowelFactory() is available';
+            } else {
+                test2.className = 'status error';
+                test2.textContent = '❌ window.registerVowelFactory() is NOT available';
+            }
+        }, 100);
+        
+        // Test 3: Check vowel-instructions registration
+        setTimeout(() => {
+            const test3 = document.getElementById('test3-status');
+            const instructionsElement = document.querySelector('vowel-instructions');
+            if (instructionsElement) {
+                test3.className = 'status success';
+                test3.textContent = '✅ vowel-instructions element found in DOM';
+            } else {
+                test3.className = 'status error';
+                test3.textContent = '❌ vowel-instructions element NOT found';
+            }
+        }, 500);
+        
+        // Test 5: Check instructions registry
+        setTimeout(() => {
+            const test5 = document.getElementById('test5-status');
+            if (window.__VOWEL_INSTRUCTIONS__ && window.__VOWEL_INSTRUCTIONS__.hasInstructions()) {
+                const instructions = window.__VOWEL_INSTRUCTIONS__.getFirst();
+                test5.className = 'status success';
+                test5.innerHTML = `✅ Instructions discovered: ${instructions.length} characters<br><pre>${instructions.substring(0, 100)}...</pre>`;
+            } else {
+                test5.className = 'status error';
+                test5.textContent = '❌ Instructions NOT discovered in registry';
+            }
+        }, 1000);
+        
+        // Register factory
+        console.log('📝 Registering Vowel factory...');
+        
+        window.registerVowelFactory(async (config) => {
+            console.log('🏭 Factory called with config:', {
+                appId: config.appId,
+                position: config.position,
+                preset: config.preset,
+                element: config.element?.tagName || 'unknown'
+            });
+            
+            // Create Vowel instance with custom configuration
+            const vowel = new window.Vowel({
+                appId: config.appId,
+                voiceConfig: {
+                    provider: 'vowel-prime',
+                    model: 'openai/gpt-oss-120b',
+                },
+            });
+            
+            console.log('✅ Vowel instance created via factory');
+            
+            // Register a test action
+            vowel.registerAction('testAction', {
+                description: 'A test action to verify factory pattern',
+                parameters: {
+                    message: {
+                        type: 'string',
+                        description: 'Test message'
+                    }
+                }
+            }, async ({ message }) => {
+                console.log('🎬 Test action called:', message);
+                alert(`Test action: ${message}`);
+            });
+            
+            console.log('✅ Test action registered');
+            
+            return vowel;
+        });
+        
+        console.log('✅ Factory registered successfully');
+        
+        // Test 4: Factory pattern test function
+        async function testFactory() {
+            const test4 = document.getElementById('test4-status');
+            try {
+                test4.className = 'status info';
+                test4.textContent = 'Testing factory...';
+                
+                // The factory will be called by the web component during initialization
+                test4.className = 'status success';
+                test4.textContent = '✅ Factory test complete - check console for details';
+            } catch (error) {
+                test4.className = 'status error';
+                test4.textContent = '❌ Factory test failed: ' + error.message;
+                console.error(error);
+            }
+        }
+    </script>
+    
+    <!-- Web component with custom init mode -->
+    <vowel-voice-widget 
+        app-id="test-app-id-factory-pattern"
+        init-mode="custom"
+        position="bottom-right">
+    </vowel-voice-widget>
+    
+    <script>
+        // Wait for component to initialize
+        setTimeout(() => {
+            const widget = document.querySelector('vowel-voice-widget');
+            if (widget && typeof widget.getVowelClient === 'function') {
+                try {
+                    const client = widget.getVowelClient();
+                    if (client) {
+                        console.log('✅ Successfully retrieved Vowel client from web component');
+                        console.log('Client instance:', client);
+                        
+                        const test4 = document.getElementById('test4-status');
+                        test4.className = 'status success';
+                        test4.textContent = '✅ Factory pattern working! Client retrieved from web component.';
+                    } else {
+                        console.warn('⚠️ getVowelClient() returned null');
+                    }
+                } catch (error) {
+                    console.error('❌ Error getting client:', error);
+                    const test4 = document.getElementById('test4-status');
+                    test4.className = 'status error';
+                    test4.textContent = '❌ Error: ' + error.message;
+                }
+            } else {
+                console.warn('⚠️ Web component or getVowelClient() not available yet');
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
+

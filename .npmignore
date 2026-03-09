@@ -1,0 +1,93 @@
+# Dependencies
+node_modules/
+
+# Development files
+.ai/
+.storybook/
+devdocs/
+docs/
+scripts/
+shopify/
+testing/
+
+# Source files (dist is published)
+lib/
+platforms/
+*.ts
+!*.d.ts
+
+# Config files
+.env*
+*.config.ts
+*.config.cjs
+*.config.js
+postcss*.js
+tsconfig.json
+components.json
+
+# Lock files
+bun.lock
+bun.lockb
+
+# Misc
+*.md
+!README.md
+test-*.html
+
+# Old tarballs
+*.tgz
+*.tar.gz
+
+# Source maps (optional - comment out if you want to publish source maps)
+# *.map
+
+# Development assets
+*.log
+*.tmp
+.DS_Store
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+.vscode/
+.idea/
+
+# Test files
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+coverage/
+
+# Build artifacts that shouldn't be published
+*.local
+.cache/
+
+# Documentation (only README.md is needed)
+CHANGELOG.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+
+# Internal documentation
+lib/**/README.md
+lib/**/*.md
+platforms/**/*.md
+
+# Storybook files
+lib/**/stories/
+*.stories.tsx
+*.stories.ts
+*.mdx
+
+# Architecture docs
+lib/**/COMPONENT_ARCHITECTURE.md
+lib/**/CONTROLLED_FRAME_README.md
+lib/**/VOICE_NAG_AND_TERMS.md
+
+# Original files (to be restored after beta)
+README.orig.md
+LICENSE.orig

@@ -1,0 +1,182 @@
+{
+  "name": "@vowel.to/client",
+  "type": "module",
+  "version": "0.1.2-beta.562",
+  "packageManager": "bun@1.1.0",
+  "description": "Framework-agnostic voice agent library powered by Google Gemini Live API",
+  "main": "./dist/client/index.cjs",
+  "module": "./dist/client/index.mjs",
+  "types": "./dist/client/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/client/index.d.ts",
+        "default": "./dist/client/index.mjs"
+      },
+      "require": {
+        "types": "./dist/client/index.d.ts",
+        "default": "./dist/client/index.cjs"
+      }
+    },
+    "./react": {
+      "import": {
+        "types": "./dist/client/react.d.ts",
+        "default": "./dist/client/react.mjs"
+      },
+      "require": {
+        "types": "./dist/client/react.d.ts",
+        "default": "./dist/client/react.cjs"
+      }
+    },
+    "./platforms/shopify": {
+      "import": {
+        "types": "./dist/client/platforms/shopify.d.ts",
+        "default": "./dist/client/platforms/shopify.mjs"
+      },
+      "require": {
+        "types": "./dist/client/platforms/shopify.d.ts",
+        "default": "./dist/client/platforms/shopify.cjs"
+      }
+    },
+    "./platforms/extension": {
+      "import": {
+        "types": "./dist/client/platforms/extension.d.ts",
+        "default": "./dist/client/platforms/extension.mjs"
+      },
+      "require": {
+        "types": "./dist/client/platforms/extension.d.ts",
+        "default": "./dist/client/platforms/extension.cjs"
+      }
+    },
+    "./platforms/generic": {
+      "import": {
+        "types": "./dist/client/platforms/generic.d.ts",
+        "default": "./dist/client/platforms/generic.mjs"
+      },
+      "require": {
+        "types": "./dist/client/platforms/generic.d.ts",
+        "default": "./dist/client/platforms/generic.cjs"
+      }
+    },
+    "./standalone": "./dist/standalone/vowel-voice-widget.min.js",
+    "./standalone.css": "./dist/standalone/vowel-voice-widget.css",
+    "./css": "./dist/client/style.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "bump-version": "node scripts/bump-version.js",
+    "dev": "vite build --watch --mode development",
+    "build": "bun run bump-version && vite build",
+    "build:standalone": "bun run bump-version && vite build --mode standalone",
+    "build:watch": "vite build --watch",
+    "build:watch:standalone": "vite build --watch --mode standalone",
+    "deploy:r2": "bun run scripts/deploy-r2.ts",
+    "build:deploy": "bun run build:standalone && bun run deploy:r2",
+    "build:shopify": "bun run bump-version && vite build --mode standalone && bun run deploy:r2",
+    "shopify:dev": "bun run build:shopify && cd ../shopify/app && shopify app dev",
+    "dev:shopify": "run-p 'build:watch:standalone' 'shopify:app:dev'",
+    "shopify:app:dev": "cd ../shopify/app && shopify app dev",
+    "build:types": "tsc --emitDeclarationOnly",
+    "publish:github": "npm publish",
+    "publish:npm": "npm publish",
+    "publish:beta": "npm publish --tag beta",
+    "version": "bun run scripts/version.ts",
+    "version:major": "bun run scripts/version.ts --type major",
+    "version:minor": "bun run scripts/version.ts --type minor",
+    "version:patch": "bun run scripts/version.ts --type patch",
+    "version:check": "bun run scripts/version.ts --dry-run",
+    "publish:release": "bun run version && bun run build && bun run publish:npm",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "keywords": [
+    "voice",
+    "ai",
+    "gemini",
+    "react",
+    "voice-agent",
+    "speech",
+    "multimodal",
+    "vowel"
+  ],
+  "author": "vowel.to",
+  "license": "PROPRIETARY",
+  "homepage": "https://vowel.to",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/usevowel/vowel.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org",
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@ricky0123/vad-web": "^0.0.30",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "dependencies": {
+    "@google/genai": "^1.24.0",
+    "@google/generative-ai": "^0.24.1",
+    "@openai/agents-realtime": "^0.2.1",
+    "@r2wc/react-to-web-component": "^2.1.0",
+    "onnxruntime-web": "^1.23.2",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-s3": "^3.911.0",
+    "@preact/preset-vite": "^2.9.1",
+    "@ricky0123/vad-web": "^0.0.30",
+    "@storybook/addon-essentials": "^8.6.14",
+    "@storybook/addon-interactions": "^8.6.14",
+    "@storybook/addon-links": "^8.6.14",
+    "@storybook/addon-onboarding": "^8.6.14",
+    "@storybook/blocks": "^8.6.14",
+    "@storybook/react": "^8.6.14",
+    "@storybook/react-vite": "^8.6.14",
+    "@storybook/test": "^8.6.14",
+    "@tailwindcss/postcss": "^4.2.1",
+    "@tanstack/react-router": "^1.132.47",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/chrome": "^0.0.277",
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.6",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^5.0.4",
+    "@vitejs/plugin-react-swc": "^4.1.0",
+    "ajv": "^8.17.1",
+    "autoprefixer": "^10.4.21",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cssnano": "^7.1.2",
+    "glob": "^11.0.3",
+    "js-yaml": "^4.1.0",
+    "lucide-react": "^0.545.0",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.5.6",
+    "preact": "^10.26.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.9.4",
+    "storybook": "^8.6.14",
+    "storybook-dark-mode": "^4.0.2",
+    "tailwind-merge": "^3.3.1",
+    "tailwindcss": "^4.2.1",
+    "terser": "^5.44.0",
+    "typescript": "5.9.3",
+    "unplugin-dts": "^1.0.0-beta.6",
+    "vite": "^7.1.7",
+    "vite-plugin-css-injected-by-js": "^3.5.2",
+    "vite-plugin-lib-inject-css": "^2.2.2"
+  },
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "resolutions": {
+    "typescript": "5.9.3"
+  }
+}
