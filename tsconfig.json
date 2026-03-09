@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["vite/client", "@types/react", "@types/react-dom", "@types/chrome"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+
+    /* JSX */
+    "jsx": "react-jsx",
+
+    /* Library mode */
+    "declaration": true,
+    "declarationMap": true,
+    "declarationDir": "dist",
+    "outDir": "dist",
+    "emitDeclarationOnly": false,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
+  },
+  "include": ["**/*"],
+  "exclude": ["node_modules", "examples", "../dist", "../demo*", "../admin", "../examples", "../platform", "../shopify", "../testing", "../docs"]
+}
