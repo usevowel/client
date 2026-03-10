@@ -22,7 +22,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Shield, FileText } from "lucide-react";
-import { cn } from "../utils";
+import { cn, VOWEL_UI_SCOPE_CLASS } from "../utils";
 
 /**
  * Props for TermsPrivacyModal
@@ -210,12 +210,12 @@ export function TermsPrivacyModal({
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] animate-in fade-in duration-300"
+        className={cn(VOWEL_UI_SCOPE_CLASS, "fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998] animate-in fade-in duration-300")}
         onClick={allowDecline ? handleDecline : undefined}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none">
+      <div className={cn(VOWEL_UI_SCOPE_CLASS, "fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none")}>
         <div
           className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col pointer-events-auto animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 relative"
           onClick={(e) => e.stopPropagation()}
@@ -399,4 +399,3 @@ export function TermsPrivacyModal({
     </>
   );
 }
-
