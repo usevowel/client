@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react';
 import { MessageCircle, Sparkles } from 'lucide-react';
 import { useCaptionManager } from './hooks/useCaptionManager';
 import { useVowel } from './VowelProviderSimple';
-import { cn } from '../utils';
+import { cn, VOWEL_UI_SCOPE_CLASS } from '../utils';
 import { isMobile } from '../utils/device-detection';
 
 /**
@@ -104,6 +104,7 @@ export function VowelCaption({
   return (
     <div
       className={cn(
+        VOWEL_UI_SCOPE_CLASS,
         'fixed z-[100] px-4 py-3 rounded-md shadow-2xl backdrop-blur-xl border',
         'transition-all duration-300 ease-in-out',
         'cursor-pointer hover:scale-[1.02] active:scale-[0.98]',

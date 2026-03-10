@@ -15,6 +15,8 @@ module.exports = {
     require('@tailwindcss/postcss'),
     // Unwrap @layer rules so consuming Tailwind v3 apps can ingest library CSS safely
     require('./postcss-strip-layers.cjs'),
+    // Scope emitted library utilities and theme variables to vowel UI roots.
+    require('./postcss-scope-vowel-ui.cjs'),
     
     // Minify and remove empty rules
     // TEMPORARILY DISABLED: cssnano causing build errors with css-tree
