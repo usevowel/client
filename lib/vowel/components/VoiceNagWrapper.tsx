@@ -21,7 +21,7 @@
 
 import { useState, useEffect, type ReactNode } from "react";
 import { X, Mic } from "lucide-react";
-import { cn } from "../utils";
+import { cn, VOWEL_UI_SCOPE_CLASS } from "../utils";
 import type { VowelPosition } from "./types";
 
 /**
@@ -178,7 +178,7 @@ export function VoiceNagWrapper({
   );
 
   return (
-    <div className={containerClasses}>
+    <div className={cn(VOWEL_UI_SCOPE_CLASS, containerClasses)}>
       {/* Nag Message Content */}
       <div className={nagContentClasses}>
         <div className="flex items-center gap-2">
@@ -218,4 +218,3 @@ export function VoiceNagWrapper({
     </div>
   );
 }
-

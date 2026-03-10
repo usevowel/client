@@ -28,7 +28,7 @@ import { TermsPrivacyModal, type TermsPrivacyModalProps } from "./TermsPrivacyMo
 import { FloatingCursorRenderer } from "./FloatingCursorRenderer";
 import { VowelCaption } from "./VowelCaption";
 import { ErrorModal } from "./ErrorModal";
-import { cn } from "../utils";
+import { cn, VOWEL_UI_SCOPE_CLASS } from "../utils";
 import type { VowelPosition } from "./types";
 import { positionClasses } from "./types";
 import "../styles/styles.css";
@@ -366,7 +366,7 @@ export function VowelAgent({
       )}
 
       {/* Main Voice Agent UI */}
-      <div className={cn("fixed z-50", positionClasses[position], className)}>
+      <div className={cn(VOWEL_UI_SCOPE_CLASS, "fixed z-50", positionClasses[position], className)}>
         {/* Transcript Panel */}
         {showTranscripts && showPanel && (
         <div className={getTranscriptPosition()}>

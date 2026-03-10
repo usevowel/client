@@ -13,7 +13,7 @@ export {
 } from "./audioUtils";
 
 // CSS utility
-export { cn } from "./utils";
+export { cn, VOWEL_UI_SCOPE_CLASS } from "./utils";
 
 // Device detection utilities
 export {
@@ -35,4 +35,3 @@ export {
 
 // CDN loader utilities
 export { loadVADWebFromCDN } from "./cdnLoader";
-

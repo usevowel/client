@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { cn } from '../utils';
+import { cn, VOWEL_UI_SCOPE_CLASS } from '../utils';
 
 /**
  * FloatingCursor component props
@@ -191,6 +191,7 @@ export function FloatingCursorComponent({
     <div
       ref={containerRef}
       className={cn(
+        VOWEL_UI_SCOPE_CLASS,
         "fixed inset-0 w-full h-full pointer-events-none transition-opacity duration-300",
         visible ? "opacity-100" : "opacity-0"
       )}
@@ -242,4 +243,3 @@ export function FloatingCursorComponent({
     </div>
   );
 }
-

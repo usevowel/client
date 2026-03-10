@@ -13,7 +13,7 @@
  */
 
 import { Mic } from 'lucide-react';
-import { cn } from '../utils';
+import { cn, VOWEL_UI_SCOPE_CLASS } from '../utils';
 
 /**
  * ControlledBannerLegacy component props
@@ -70,6 +70,7 @@ export function ControlledBannerLegacy({
       
       <div
         className={cn(
+          VOWEL_UI_SCOPE_CLASS,
           "vowel-controlled-banner",
           "fixed top-0 left-0 right-0",
           "py-3 px-5 text-center",
@@ -91,4 +92,3 @@ export function ControlledBannerLegacy({
     </>
   );
 }
-
