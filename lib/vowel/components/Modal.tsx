@@ -12,7 +12,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { cn } from '../utils';
+import { cn, VOWEL_UI_SCOPE_CLASS } from '../utils';
 
 /**
  * Modal component props
@@ -82,7 +82,7 @@ export function Modal({
   if (!isOpen) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[999999] flex items-center justify-center p-4">
+    <div className={cn(VOWEL_UI_SCOPE_CLASS, "fixed inset-0 z-[999999] flex items-center justify-center p-4")}>
       {/* Overlay */}
       <div
         onClick={onClose}
@@ -150,4 +150,3 @@ export function Modal({
   // Render in portal
   return createPortal(modalContent, document.body);
 }
-

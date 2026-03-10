@@ -11,7 +11,7 @@
 
 import { useState } from 'react';
 import { Mic, MicOff, Loader2, Sparkles, Brain, MessageCircle, Settings, Pause, Wrench, Moon } from 'lucide-react';
-import { cn } from '../utils';
+import { cn, VOWEL_UI_SCOPE_CLASS } from '../utils';
 import { VowelSettingsModal, type VowelSettingsModalMock } from './VowelSettingsModal';
 import type { Vowel } from '../core/VowelClient';
 
@@ -249,7 +249,7 @@ export function FloatingMicButton({
       case 'error':
         return 'animate-pulse';
       case 'resuming':
-        return 'animate-gradient-shift';
+        return 'vowel-animate-gradient-shift';
       case 'hibernated':
         return 'animate-pulse';
       case 'user-speaking':
@@ -406,11 +406,11 @@ export function FloatingMicButton({
             }
           }
           
-          .animate-gradient-shift {
+          .vowel-animate-gradient-shift {
             animation: vowel-gradient-shift 3s ease infinite;
           }
           
-          .animate-ping-effect {
+          .vowel-animate-ping-effect {
             animation: vowel-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
           }
           
@@ -430,6 +430,7 @@ export function FloatingMicButton({
 
       <div
         className={cn(
+          VOWEL_UI_SCOPE_CLASS,
           !inline && "fixed",
           !inline && positionClasses[position],
           className
@@ -493,7 +494,7 @@ export function FloatingMicButton({
           {/* Ping effect for speaking states */}
           {showPing && (
             <span
-              className="absolute inset-0 rounded-2xl bg-current opacity-40 animate-ping-effect pointer-events-none"
+              className="absolute inset-0 rounded-2xl bg-current opacity-40 vowel-animate-ping-effect pointer-events-none"
             />
           )}
 
@@ -527,4 +528,3 @@ export function FloatingMicButton({
     </>
   );
 }
-

@@ -5,7 +5,7 @@
 
 import { Mic, MicOff, Loader2, Wrench } from "lucide-react";
 import { useVowel } from "./VowelProviderSimple";
-import { cn } from "../utils";
+import { cn, VOWEL_UI_SCOPE_CLASS } from "../utils";
 import { useEffect } from "react";
 import "../styles/styles.css";
 
@@ -181,7 +181,7 @@ export function VowelMicrophone({
   const isDisabled = !state.isConnected && state.isConnecting;
 
   return (
-    <div className={cn("", className)}>
+    <div className={cn(VOWEL_UI_SCOPE_CLASS, className)}>
       <button
         onClick={toggleSession}
         disabled={isDisabled}
