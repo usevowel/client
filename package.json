@@ -90,6 +90,7 @@
     "version:patch": "bun run scripts/version.ts --type patch",
     "version:check": "bun run scripts/version.ts --dry-run",
     "publish:release": "bun run version && bun run build && bun run publish:npm",
+    "test:build-css-scope": "bun test testing/buildStyleScope.test.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
