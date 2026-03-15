@@ -9,7 +9,8 @@ import { VowelProvider } from "./VowelProviderSimple";
 import { VowelAgent } from "./components";
 import type { VowelAgentProps } from "./components";
 import { Vowel } from "../core/VowelClient";
-import type { VowelClientConfig, RouterAdapter } from "../types";
+import type { VowelClientConfig } from "../types";
+import type { RouterAdapter } from "../types/types";
 
 // Import platform adapters
 import {
@@ -1006,4 +1007,3 @@ export function VowelWebComponentWrapper({
     </VowelProvider>
   );
 }
-
