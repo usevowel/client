@@ -1,7 +1,7 @@
 # @vowel.to/client
 
 **Status:** Beta  
-**Version:** 0.2.0
+**Version:** 0.2.0-beta
 
 ---
 
