@@ -52,7 +52,6 @@ export type {
   VowelAction,
   VowelVoiceConfig,
   VowelActionParameter,
-  RouterAdapter,
   ActionHandler,
 } from "./lib/vowel/types";
 
