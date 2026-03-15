@@ -36,8 +36,6 @@ export {
   type FloatingCursorComponentProps,
   ControlledBanner,
   type ControlledBannerProps,
-  ControlledBannerLegacy,
-  type ControlledBannerLegacyProps,
   ControlledByVowelFrame,
   type ControlledByVowelFrameProps,
   FloatingMicButton,
