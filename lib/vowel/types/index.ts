@@ -11,7 +11,6 @@ export type {
   VowelPrimeEnvironment,
   VowelConfig,
   VowelClientConfig,
-  RouterAdapter,
   NavigationAdapter,
   AutomationAdapter,
   AutomationSearchOptions,
