@@ -41,6 +41,8 @@ import type { ProviderType } from "../types/providers";
  * This allows simple VAD in server_vad mode to update button state.
  */
 const ENABLE_SERVER_VAD_UI_UPDATES = false;
+const HOSTED_INITIAL_GREETING_DELAY_MS = 150;
+const HOSTED_INITIAL_GREETING_PROVIDERS = new Set<ProviderType>(["openai", "grok"]);
 
 /**
  * Message handler callback
@@ -51,6 +53,12 @@ export type MessageHandler = (message: any) => void | Promise<void>;
  * Status update callback
  */
 export type StatusUpdateHandler = (status: string) => void;
+
+interface DisconnectOptions {
+  closeReason?: string;
+  notifyClose?: boolean;
+  preserveHibernated?: boolean;
+}
 
 /**
  * Token response from backend (multi-provider)
@@ -174,6 +182,15 @@ export class SessionManager {
   // Context management
   private currentContext: Record<string, unknown> | null = null; // Dynamic context object that gets stringified and appended to system prompt
   private baseInstructions: string = ""; // Store original instructions (before context is added)
+  private initialGreetingTimeout: ReturnType<typeof setTimeout> | null = null;
+  private idleHibernateTimeout: ReturnType<typeof setTimeout> | null = null;
+  private isClientSpeechActive: boolean = false;
+  private isServerSpeechActive: boolean = false;
+  private isAssistantAudioActive: boolean = false;
+  private managedCloseReason: string | null = null;
+  private suppressProviderClose: boolean = false;
+  private isInitializingSession: boolean = false;
+  private providerLifecycleId: number = 0;
 
   constructor(config: SessionConfig) {
     this.config = config;
@@ -202,6 +219,7 @@ export class SessionManager {
 
     this.isToolExecuting = isExecuting;
     this.config.onToolExecutingChange?.(isExecuting);
+    this.updateIdleHibernateTimer("tool execution state changed");
   }
 
   /**
@@ -240,6 +258,7 @@ export class SessionManager {
     }
 
     this.config.onAIThinkingChange?.(isThinking);
+    this.updateIdleHibernateTimer("thinking state changed");
 
     // Start/stop typing sounds
     if (isThinking) {
@@ -331,6 +350,177 @@ export class SessionManager {
       default:
         return 'gemini-2.0-flash-live-001';
     }
+  }
+
+  private clearPendingInitialGreeting(): void {
+    if (this.initialGreetingTimeout) {
+      clearTimeout(this.initialGreetingTimeout);
+      this.initialGreetingTimeout = null;
+    }
+  }
+
+  private getClientIdleHibernateTimeoutMs(): number | null {
+    const timeoutMs = this.config.voiceConfig?.clientIdleHibernateTimeoutMs;
+    return typeof timeoutMs === "number" && timeoutMs > 0 ? timeoutMs : null;
+  }
+
+  private clearIdleHibernateTimer(): void {
+    if (this.idleHibernateTimeout) {
+      clearTimeout(this.idleHibernateTimeout);
+      this.idleHibernateTimeout = null;
+    }
+  }
+
+  private refreshIdleHibernateTimer(context: string): void {
+    this.clearIdleHibernateTimer();
+    this.updateIdleHibernateTimer(context);
+  }
+
+  private hasActiveSessionWork(): boolean {
+    return (
+      this.isClientSpeechActive ||
+      this.isServerSpeechActive ||
+      this.isAssistantAudioActive ||
+      this.isAIThinking ||
+      this.isToolExecuting ||
+      this.isResponseInProgress
+    );
+  }
+
+  private updateIdleHibernateTimer(context: string): void {
+    const timeoutMs = this.getClientIdleHibernateTimeoutMs();
+    if (!timeoutMs) {
+      this.clearIdleHibernateTimer();
+      return;
+    }
+
+    if (
+      this.isInitializingSession ||
+      this.suppressProviderClose ||
+      !this.provider ||
+      this.provider.getConnectionState() !== "connected" ||
+      this.isHibernated
+    ) {
+      this.clearIdleHibernateTimer();
+      return;
+    }
+
+    if (this.hasActiveSessionWork()) {
+      this.clearIdleHibernateTimer();
+      console.log(`⏱️ [SessionManager] Idle hibernation paused (${context}): session is active`);
+      return;
+    }
+
+    if (this.idleHibernateTimeout) {
+      return;
+    }
+
+    console.log(`⏱️ [SessionManager] Scheduling client idle hibernation in ${timeoutMs}ms (${context})`);
+    this.idleHibernateTimeout = setTimeout(() => {
+      this.idleHibernateTimeout = null;
+      void this.hibernateForIdleTimeout(timeoutMs);
+    }, timeoutMs);
+  }
+
+  private setClientSpeechActive(isActive: boolean, source: string): void {
+    if (this.isClientSpeechActive === isActive) {
+      return;
+    }
+
+    this.isClientSpeechActive = isActive;
+    this.updateIdleHibernateTimer(`client speech ${source}`);
+  }
+
+  private setServerSpeechActive(isActive: boolean, source: string): void {
+    if (this.isServerSpeechActive === isActive) {
+      return;
+    }
+
+    this.isServerSpeechActive = isActive;
+    this.updateIdleHibernateTimer(`server speech ${source}`);
+  }
+
+  private setAssistantAudioActive(isActive: boolean, source: string): void {
+    if (this.isAssistantAudioActive === isActive) {
+      return;
+    }
+
+    this.isAssistantAudioActive = isActive;
+    this.updateIdleHibernateTimer(`assistant audio ${source}`);
+  }
+
+  private isStaleProviderCallback(expectedLifecycleId: number, callbackName: string): boolean {
+    if (expectedLifecycleId !== this.providerLifecycleId) {
+      console.log(
+        `ℹ️ [SessionManager] Ignoring stale provider callback (${callbackName}) for lifecycle ${expectedLifecycleId}; current lifecycle is ${this.providerLifecycleId}`
+      );
+      return true;
+    }
+
+    return false;
+  }
+
+  private async hibernateForIdleTimeout(timeoutMs: number): Promise<void> {
+    if (!this.provider || this.provider.getConnectionState() !== "connected") {
+      return;
+    }
+
+    if (this.hasActiveSessionWork()) {
+      this.updateIdleHibernateTimer("idle timeout skipped due to renewed activity");
+      return;
+    }
+
+    console.log(`💤 [SessionManager] Client idle hibernation triggered after ${timeoutMs}ms`);
+    this.isHibernated = true;
+    this.config.onHibernationChange?.(true);
+    this.config.onStatusUpdate?.("Sleeping...");
+
+    await this.disconnect({
+      closeReason: `Client idle hibernation after ${timeoutMs}ms`,
+      notifyClose: true,
+      preserveHibernated: true,
+    });
+  }
+
+  private scheduleHostedInitialGreeting(provider: ProviderType): void {
+    const initialGreetingPrompt = this.config.voiceConfig?.initialGreetingPrompt?.trim();
+    if (!initialGreetingPrompt || !HOSTED_INITIAL_GREETING_PROVIDERS.has(provider)) {
+      return;
+    }
+
+    if (!this.provider?.sendText) {
+      console.warn(`⚠️ [SessionManager] Cannot schedule initial greeting for ${provider}: provider does not support text input`);
+      return;
+    }
+
+    this.clearPendingInitialGreeting();
+
+    console.log(
+      `⏳ [SessionManager] Scheduling hosted initial greeting for ${provider} in ${HOSTED_INITIAL_GREETING_DELAY_MS}ms`
+    );
+
+    this.initialGreetingTimeout = setTimeout(() => {
+      this.initialGreetingTimeout = null;
+
+      if (!this.provider || this.provider.getConnectionState() !== "connected") {
+        console.warn(`⚠️ [SessionManager] Skipping initial greeting for ${provider}: session is no longer connected`);
+        return;
+      }
+
+      if (!this.provider.sendText) {
+        console.warn(`⚠️ [SessionManager] Skipping initial greeting for ${provider}: provider does not support text input`);
+        return;
+      }
+
+      const prompt = [
+        "Notify the user that the voice session is ready and deliver the initial greeting now.",
+        `Follow this greeting guidance: ${initialGreetingPrompt}`,
+      ].join("\n\n");
+
+      console.log(`👋 [SessionManager] Triggering hosted initial greeting for ${provider}`);
+      this.provider.sendText(prompt);
+      this.refreshIdleHibernateTimer("initial greeting prompt");
+    }, HOSTED_INITIAL_GREETING_DELAY_MS);
   }
 
   /**
@@ -506,10 +696,12 @@ export class SessionManager {
           this.initTimings.setupCompleteTime = Date.now();
           console.log("✅ Session setup complete");
           this.config.onStatusUpdate?.("Connected - ready to listen");
+          this.updateIdleHibernateTimer("session ready");
           break;
 
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED:
           // Server-side VAD detected user started speaking
+          this.setServerSpeechActive(true, "started");
           if (this.config.voiceConfig?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🗣️ [SessionManager] User started speaking (server VAD)");
             this.config.onUserSpeakingChange?.(true);
@@ -518,6 +710,7 @@ export class SessionManager {
 
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED:
           // Server-side VAD detected user stopped speaking
+          this.setServerSpeechActive(false, "stopped");
           if (this.config.voiceConfig?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🔇 [SessionManager] User stopped speaking (server VAD)");
             this.config.onUserSpeakingChange?.(false);
@@ -537,6 +730,8 @@ export class SessionManager {
           this.config.audioManager.clearInterrupt();
           
           // User is no longer speaking when AI starts responding
+          this.setClientSpeechActive(false, "response created");
+          this.setServerSpeechActive(false, "response created");
           this.config.onUserSpeakingChange?.(false);
           
           // Start thinking state when turn starts
@@ -567,6 +762,7 @@ export class SessionManager {
           console.log("✅ [SessionManager] Current tool executing state:", this.isToolExecuting);
           
           this.isResponseInProgress = false;
+          this.setAssistantAudioActive(false, "response done");
           
           // Clear thinking state - thinking lasts from turn_started to turn_done
           if (this.isAIThinking) {
@@ -592,6 +788,7 @@ export class SessionManager {
         case RealtimeMessageType.RESPONSE_CANCELLED:
           // Response was cancelled - clear states
           this.isResponseInProgress = false;
+          this.setAssistantAudioActive(false, "response cancelled");
           if (this.isAIThinking) {
             this.updateThinkingState(false);
             console.log("🚫 [SessionManager] Response cancelled - thinking cleared");
@@ -613,12 +810,14 @@ export class SessionManager {
           // AI started speaking - speaking state will override thinking visually
           // But don't clear thinking state - it persists until response.done
           // The UI components prioritize speaking over thinking
+          this.setAssistantAudioActive(true, "delta");
           console.log("🔊 [SessionManager] AI speaking (thinking persists until response.done)");
           break;
 
         case RealtimeMessageType.AUDIO_DONE:
           // Audio playback complete - speaking ends
           // If response is still in progress, thinking should resume (already active)
+          this.setAssistantAudioActive(false, "done");
           console.log("✅ [SessionManager] Audio playback complete");
           if (this.isResponseInProgress && this.isAIThinking) {
             console.log("💭 [SessionManager] Thinking resumes (response still in progress)");
@@ -637,6 +836,7 @@ export class SessionManager {
           
           // Stop all audio playback
           this.config.audioManager.stopAllAudio();
+          this.setAssistantAudioActive(false, "interrupted");
           
           // Clear thinking and tool execution states on interrupt
           if (this.isAIThinking) {
@@ -673,6 +873,7 @@ export class SessionManager {
           console.log("  Status updated to:", message.payload.message || "Session ended");
           
           // Cleanup will be handled by onClose callback
+          this.clearIdleHibernateTimer();
           console.log("  Note: Cleanup will be handled by onClose callback");
           console.log("✅ [SessionManager] Timeout handled successfully");
           console.log("⏱️  [SessionManager] ═══════════════════════════════════════");
@@ -681,6 +882,7 @@ export class SessionManager {
         case RealtimeMessageType.SESSION_HIBERNATE:
           // Session entered hibernation mode - STT stream closed
           this.isHibernated = true;
+          this.clearIdleHibernateTimer();
           this.config.onHibernationChange?.(true);
           this.config.onStatusUpdate?.('Sleeping...');
           
@@ -700,6 +902,7 @@ export class SessionManager {
           this.isHibernated = false;
           this.config.onHibernationChange?.(false);
           this.config.onStatusUpdate?.('Connected - ready to listen');
+          this.updateIdleHibernateTimer("session resumed");
           
           console.log('☀️ [SessionManager] ═══════════════════════════════════════');
           console.log('☀️ [SessionManager] SESSION RESUMED FROM HIBERNATION');
@@ -969,6 +1172,14 @@ export class SessionManager {
    */
   async connect(toolContext: ToolContext, restoreState?: Partial<VoiceSessionState>, initialContext?: Record<string, unknown> | null): Promise<void> {
     try {
+      this.clearPendingInitialGreeting();
+      this.clearIdleHibernateTimer();
+      this.isClientSpeechActive = false;
+      this.isServerSpeechActive = false;
+      this.isAssistantAudioActive = false;
+      this.isHibernated = false;
+      this.isInitializingSession = true;
+
       // Reset and start timing
       this.initTimings = { startTime: Date.now() };
       
@@ -1185,6 +1396,7 @@ export class SessionManager {
         turnDetection: this.config.voiceConfig?.turnDetection, // Pass turnDetection config to provider
         audioConfig: this.config.voiceConfig?.audioConfig,
       };
+      const providerLifecycleId = ++this.providerLifecycleId;
 
       this.provider = RealtimeProviderFactory.create(
         tokenResponse.provider,
@@ -1199,24 +1411,52 @@ export class SessionManager {
         },
         {
           onOpen: async () => {
+            if (this.isStaleProviderCallback(providerLifecycleId, "onOpen")) {
+              return;
+            }
             this.initTimings.connectionEnd = Date.now();
             console.log("✅ Provider session opened");
+            this.isHibernated = false;
+            this.config.onHibernationChange?.(false);
             this.config.onOpen?.();
             this.config.onStatusUpdate?.("Setting up microphone...");
           },
           onClose: (reason) => {
+            if (this.isStaleProviderCallback(providerLifecycleId, "onClose")) {
+              return;
+            }
             console.log("🔌 Provider session closed:", reason);
+            this.clearIdleHibernateTimer();
+            this.setClientSpeechActive(false, "provider close");
+            this.setServerSpeechActive(false, "provider close");
+            this.setAssistantAudioActive(false, "provider close");
+
+            if (this.suppressProviderClose) {
+              console.log("ℹ️ [SessionManager] Suppressing provider close callback during managed disconnect");
+              this.provider = null;
+              return;
+            }
+
             this.config.onClose?.(reason);
             this.provider = null;
           },
           onError: (error) => {
+            if (this.isStaleProviderCallback(providerLifecycleId, "onError")) {
+              return;
+            }
             console.error("❌ Provider session error:", error);
             this.config.onError?.(error.message);
           },
           onMessage: async (message) => {
+            if (this.isStaleProviderCallback(providerLifecycleId, "onMessage")) {
+              return;
+            }
             await this.handleProviderMessage(message, toolContext);
           },
           onConnectionStateChange: (state) => {
+            if (this.isStaleProviderCallback(providerLifecycleId, "onConnectionStateChange")) {
+              return;
+            }
             console.log("🔄 Connection state:", state);
         },
         }
@@ -1266,10 +1506,12 @@ export class SessionManager {
                   mediaStream: mediaStream, // Pass MediaStream for MicVAD (Silero VAD) - required for V5 model
                   onSpeechStart: () => {
                     console.log("🗣️ [EnhancedVAD] User started speaking");
+                    this.setClientSpeechActive(true, "enhanced vad start");
                     this.config.onUserSpeakingChange?.(true);
                   },
                   onSpeechEnd: () => {
                     console.log("🔇 [EnhancedVAD] User stopped speaking");
+                    this.setClientSpeechActive(false, "enhanced vad end");
                     this.config.onUserSpeakingChange?.(false);
                     
                     // User stopped speaking - AI may start thinking
@@ -1313,6 +1555,7 @@ export class SessionManager {
                   console.log("  Timestamp:", data.timestamp);
                   console.log("  Probability:", data.probability);
                   console.log("  Adapter ID:", data.adapterId);
+                  this.setClientSpeechActive(true, "enhanced vad event start");
                   
                   // Immediately update user speaking state (button UI)
                   console.log("🔴 [SessionManager] Setting user speaking state to TRUE");
@@ -1352,6 +1595,7 @@ export class SessionManager {
                   }
                   
                   // Reset user speaking state
+                  this.setClientSpeechActive(false, "enhanced vad event end");
                   console.log("🟢 [SessionManager] Setting user speaking state to FALSE");
                   this.config.onUserSpeakingChange?.(false);
                   console.log("🟢 [SessionManager] onUserSpeakingChange(false) called");
@@ -1407,6 +1651,7 @@ export class SessionManager {
                   console.log("🗣️ [SessionManager] Simple VAD detected speech start (UI-only, no interrupt)");
                   console.log("  Timestamp:", data.timestamp);
                   console.log("  Probability:", data.probability);
+                  this.setClientSpeechActive(true, "simple vad start");
                   
                   // ONLY update UI state - do NOT interrupt audio or clear states
                   this.config.onUserSpeakingChange?.(true);
@@ -1424,6 +1669,7 @@ export class SessionManager {
                   }
                   
                   // ONLY update UI state - do NOT trigger thinking state or other side effects
+                  this.setClientSpeechActive(false, "simple vad end");
                   this.config.onUserSpeakingChange?.(false);
                 });
               } else if (vadType && vadType !== "none") {
@@ -1433,10 +1679,12 @@ export class SessionManager {
                   vadType: vadType,
                   onSpeechStart: () => {
                     console.log("🗣️ Client VAD: User started speaking");
+                    this.setClientSpeechActive(true, "legacy vad start");
                     this.config.onUserSpeakingChange?.(true);
                   },
                   onSpeechEnd: () => {
                     console.log("🔇 Client VAD: User stopped speaking");
+                    this.setClientSpeechActive(false, "legacy vad end");
                     this.config.onUserSpeakingChange?.(false);
                     
                     // User stopped speaking - AI may start thinking
@@ -1478,12 +1726,18 @@ export class SessionManager {
         } catch (error: any) {
           console.error("❌ Microphone error:", error);
           this.config.onError?.(`Microphone error: ${error.message}`);
-          this.disconnect();
+          await this.disconnect();
+          throw error;
         }
       } else {
         console.log("🎙️ Provider handles audio internally (WebRTC) - skipping AudioManager setup");
       }
+
+      this.scheduleHostedInitialGreeting(tokenResponse.provider);
+      this.isInitializingSession = false;
+      this.updateIdleHibernateTimer("connect completed");
     } catch (error: any) {
+      this.isInitializingSession = false;
       console.error("❌ Failed to connect session:", error);
       
       // Enhanced error message for domain authorization failures
@@ -1506,8 +1760,16 @@ export class SessionManager {
   /**
    * Disconnect from session and reset state
    */
-  async disconnect(): Promise<void> {
+  async disconnect(options: DisconnectOptions = {}): Promise<void> {
+    const { closeReason, notifyClose = false, preserveHibernated = false } = options;
+
     console.log("🛑 SessionManager: Disconnecting...");
+    this.clearPendingInitialGreeting();
+    this.clearIdleHibernateTimer();
+    this.suppressProviderClose = true;
+    this.managedCloseReason = closeReason ?? "Session disconnected";
+    this.isInitializingSession = false;
+    this.providerLifecycleId += 1;
 
     // Stop VAD (both legacy and enhanced)
     if (this.vadManager) {
@@ -1530,6 +1792,9 @@ export class SessionManager {
     }
 
     // Reset state
+    this.setClientSpeechActive(false, "disconnect");
+    this.setServerSpeechActive(false, "disconnect");
+    this.setAssistantAudioActive(false, "disconnect");
     this.updateThinkingState(false);
     this.updateToolExecutingState(false);
     this.isResponseInProgress = false;
@@ -1540,13 +1805,28 @@ export class SessionManager {
     this.hasReachedStepLimit = false;
     this.toolFailureCount.clear();
 
-    if (this.provider) {
-      await this.provider.disconnect();
+    try {
+      if (this.provider) {
+        await this.provider.disconnect();
+        this.provider = null;
+        console.log("✅ Provider disconnected");
+      }
+
+      if (!preserveHibernated && this.isHibernated) {
+        this.isHibernated = false;
+        this.config.onHibernationChange?.(false);
+      }
+
+      if (notifyClose) {
+        this.config.onClose?.(this.managedCloseReason);
+      }
+    } finally {
       this.provider = null;
-      console.log("✅ Provider disconnected");
+      this.suppressProviderClose = false;
+      this.managedCloseReason = null;
     }
 
-    this.config.onStatusUpdate?.("Disconnected");
+    this.config.onStatusUpdate?.(preserveHibernated ? "Sleeping..." : "Disconnected");
   }
 
   /**
@@ -1637,7 +1917,8 @@ export class SessionManager {
       // This will trigger the AI to generate a spoken audio response
       if (this.provider.sendText) {
         await this.provider.sendText(prompt);
-      console.log('✅ Event notification sent to AI');
+        this.refreshIdleHibernateTimer("notify event sent");
+        console.log('✅ Event notification sent to AI');
       } else {
         console.warn('⚠️ Provider does not support text input');
       }
@@ -1668,6 +1949,7 @@ export class SessionManager {
       console.log('📝 Sending text to AI:', text);
       if (this.provider.sendText) {
         await this.provider.sendText(text);
+        this.refreshIdleHibernateTimer("text sent");
         console.log('✅ Text sent to AI');
       } else {
         console.warn('⚠️ Provider does not support text input');
@@ -1704,6 +1986,7 @@ export class SessionManager {
       console.log('🖼️ Sending image to AI:', imageUrl.substring(0, 100) + '...');
       if (this.provider.sendImage) {
         await this.provider.sendImage(imageUrl);
+        this.refreshIdleHibernateTimer("image sent");
         console.log('✅ Image sent to AI');
       } else {
         console.warn('⚠️ Provider does not support image input');

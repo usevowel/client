@@ -243,16 +243,20 @@ export class Vowel {
           isConnected: true,
           isConnecting: false,
           isResuming: false, // Clear resuming flag when connected
+          isHibernated: false,
         });
       },
       onClose: (reason) => {
         // Categorize close reason for better user feedback
-        let closeCategory: 'timeout' | 'error' | 'client_disconnect' | 'network' | 'unknown';
+        let closeCategory: 'timeout' | 'error' | 'client_disconnect' | 'network' | 'hibernation' | 'unknown';
         let userMessage: string;
         
         const reasonLower = reason.toLowerCase();
         
-        if (reasonLower.includes('timeout') || reasonLower.includes('idle') || reasonLower.includes('duration') || reasonLower.includes('no speech')) {
+        if (reasonLower.includes('hibernat') || reasonLower.includes('sleep')) {
+          closeCategory = 'hibernation';
+          userMessage = 'Sleeping...';
+        } else if (reasonLower.includes('timeout') || reasonLower.includes('idle') || reasonLower.includes('duration') || reasonLower.includes('no speech')) {
           closeCategory = 'timeout';
           userMessage = reason.includes('Maximum call duration') 
             ? 'Session ended: Maximum call duration reached'
@@ -278,10 +282,17 @@ export class Vowel {
           category: closeCategory,
           userMessage,
         });
+
+        const currentState = this.stateManager.getState();
+        const closedDuringInitialConnect = currentState.isConnecting && !currentState.isConnected;
         
         // Perform full cleanup when WebSocket is closed by server
         // This ensures VAD and microphone are stopped even on unexpected disconnects
-        this.performCleanup();
+        if (closedDuringInitialConnect) {
+          console.log("ℹ️ [VowelClient] Provider closed during initial connect; deferring cleanup to failed connect handling");
+        } else {
+          this.performCleanup();
+        }
         
         // Clear all speaking states when connection closes unexpectedly
         this.stateManager.updateState({
@@ -292,6 +303,7 @@ export class Vowel {
           isAIThinking: false,
           isToolExecuting: false,
           isAISpeaking: false,
+          isHibernated: closeCategory === 'hibernation',
         });
       },
       onError: (error: any) => {
@@ -331,7 +343,8 @@ export class Vowel {
         // Check if session is actually connected BEFORE updating state
         // (we need to check before state update since we're setting isConnected=false)
         const currentState = this.stateManager.getState();
-        const wasConnected = currentState.isConnected || currentState.isConnecting;
+        const wasConnected = currentState.isConnected;
+        const wasConnecting = currentState.isConnecting && !currentState.isConnected;
         
         // Store error in state for UI display
         this.stateManager.updateState({
@@ -353,6 +366,8 @@ export class Vowel {
           this.stopSession().catch((disconnectError) => {
             console.error("❌ [VowelClient] Error during forced disconnect:", disconnectError);
           });
+        } else if (wasConnecting) {
+          console.log("ℹ️ [VowelClient] Error detected during initial connect; deferring cleanup to failed connect handling");
         } else {
           // Session not connected, but still perform cleanup for any lingering resources
           console.log("🧹 [VowelClient] Error detected but session not connected - performing cleanup...");
@@ -1180,6 +1195,13 @@ export class Vowel {
       // Connect to session (with optional state restoration and initial context)
       await this.sessionManager.connect(toolContext, options?.restoreState, this.context);
     } catch (error: any) {
+      try {
+        await this.sessionManager.disconnect();
+      } catch (disconnectError) {
+        console.warn("⚠️ Failed to clean up partially initialized session after start failure:", disconnectError);
+      }
+
+      this.performCleanup();
       console.error("❌ Failed to start session:", error);
       this.stateManager.updateState({
         isConnecting: false,
@@ -1290,6 +1312,7 @@ export class Vowel {
       isAIThinking: false,
       isToolExecuting: false,
       isAISpeaking: false,
+      isHibernated: false,
     });
 
     console.log("✅ Session stopped");

@@ -546,6 +546,13 @@ export interface VowelVoiceConfig {
    */
   initialGreetingPrompt?: string;
   /**
+   * Force a client-side hibernation after this many milliseconds of inactivity.
+   * When the timer elapses, the client disconnects the realtime socket to avoid
+   * keeping a billable hosted session open while idle.
+   * Example: `10000` disconnects after 10 seconds of idle time.
+   */
+  clientIdleHibernateTimeoutMs?: number;
+  /**
    * Speech turn detection sensitivity preset
    * Controls how quickly the AI responds after you stop speaking
    * - "aggressive": Responds very quickly (best for short, rapid exchanges)
