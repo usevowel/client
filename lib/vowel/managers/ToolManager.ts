@@ -18,7 +18,8 @@
  * @license Proprietary
  */
 
-import type { VowelAction, VowelRoute, RouterAdapter } from "../types";
+import type { VowelAction, VowelRoute } from "../types";
+import type { RouterAdapter } from "../types/types";
 
 function sanitizeLooseValue(value: any): any {
   if (value === null) {

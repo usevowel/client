@@ -2,7 +2,8 @@
  * TanStack Router adapter for Vowel
  */
 
-import type { RouterAdapter, VowelRoute } from "../types";
+import type { VowelRoute } from "../types";
+import type { RouterAdapter } from "../types/types";
 import type { Router } from "@tanstack/react-router";
 
 /**
@@ -161,4 +162,3 @@ export function tanstackRouterHookAdapter(
     },
   };
 }
-
