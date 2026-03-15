@@ -23,11 +23,11 @@ import type {
   VowelAction,
   VowelVoiceConfig,
   VowelClientConfig,
-  RouterAdapter,
   NavigationAdapter,
   AutomationAdapter,
   ActionHandler,
 } from "../types";
+import type { RouterAdapter } from "../types/types";
 import { ToolManager, type ToolContext, type ToolResult } from "../managers";
 import { StateManager, type VoiceSessionState } from "../managers";
 import { AudioManager } from "../managers";
@@ -40,6 +40,7 @@ import { BorderGlowManager } from "../ui/border-glow";
 import { FloatingActionPillManager } from "../ui/FloatingActionPill";
 import { isMobileOrTablet } from "../utils/device-detection";
 import { DarkModeManager } from "../utils/darkMode";
+import { warnDeprecated } from "../utils/deprecation";
 
 /**
  * Main Vowel client class
@@ -112,7 +113,36 @@ export class Vowel {
     // Validate config - either appId (for platform tokens) or voiceConfig.token (for direct connections) is required
     const hasAppId = !!config.appId;
     const hasDirectToken = !!config.voiceConfig?.token;
-    
+
+    if (hasDirectToken) {
+      warnDeprecated(
+        'voiceConfig.token',
+        'connection.token (in new connection-based config)',
+        'See https://vowel.to/docs/guide/connection-models and https://vowel.to/docs/recipes/connection-paradigms for current setup guidance.'
+      );
+    }
+    if (config.voiceConfig?.provider) {
+      warnDeprecated(
+        'voiceConfig.provider',
+        'connection.provider (in new connection-based config)',
+        'Provider selection will be explicit in the new connection model.'
+      );
+    }
+    if (config.tokenEndpoint) {
+      warnDeprecated(
+        'tokenEndpoint',
+        'connection.tokenSource with kind: "endpoint"',
+        'Custom token endpoints are now part of the connection.tokenSource config.'
+      );
+    }
+    if (config.convexUrl) {
+      warnDeprecated(
+        'convexUrl',
+        'connection.tokenSource with kind: "convex"',
+        'Convex token sources are now part of the connection.tokenSource config.'
+      );
+    }
+
     if (!hasAppId && !hasDirectToken) {
       throw new Error(
         'VowelClient requires either appId (for platform-managed tokens) or voiceConfig.token (for direct connections) to be provided in config. ' +
@@ -1706,5 +1736,5 @@ export class Vowel {
 }
 
 // Export types for convenience
-export type { RouterAdapter, ActionHandler };
+export type { ActionHandler };
 export type VowelConfig = VowelClientConfig;
