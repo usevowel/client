@@ -1,16 +1,14 @@
 # @vowel.to/client
 
-**Status:** Closed Beta — Internal Use Only  
-**Version:** 0.1.2-beta.536
+**Status:** Beta  
+**Version:** 0.2.0
 
 ---
 
-This package is part of a closed beta program. Access is restricted to authorized participants.
+A framework-agnostic voice agent library powered by Google Gemini Live API.
 
 For inquiries, contact: support@vowel.to
 
 ---
-
-**PROPRIETARY AND CONFIDENTIAL**
 
 Copyright (c) 2025 Vowel.to. All rights reserved.
