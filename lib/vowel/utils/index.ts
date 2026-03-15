@@ -35,3 +35,6 @@ export {
 
 // CDN loader utilities
 export { loadVADWebFromCDN } from "./cdnLoader";
+
+// Deprecation warning utilities
+export { warnDeprecated, _resetDeprecationWarningsForTesting } from "./deprecation";
