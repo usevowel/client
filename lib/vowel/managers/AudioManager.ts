@@ -667,9 +667,21 @@ export class AudioManager {
     }
 
     console.log("✅ Microphone access granted");
+
+    if (!this.refs.inputContext || this.refs.inputContext.state === 'closed' || !this.refs.inputNode) {
+      console.warn("⚠️ Audio graph was torn down during microphone setup - reinitializing audio contexts");
+      await this.initAudio();
+      await this.ensureOutputAudioContext(outputAudioFormat.sampleRate);
+    }
+
+    const inputContext = this.refs.inputContext;
+    const inputNode = this.refs.inputNode;
+    if (!inputContext || !inputNode) {
+      throw new Error("Audio context was not available after microphone setup");
+    }
     
     // Log sample rates for debugging
-    const inputSampleRate = this.refs.inputContext.sampleRate;
+    const inputSampleRate = inputContext.sampleRate;
     console.log(`🎤 Input sample rate: ${inputSampleRate}Hz (will resample to ${inputAudioFormat.sampleRate}Hz)`);
     
     onStatusUpdate?.("Setting up echo cancellation...");
@@ -683,20 +695,18 @@ export class AudioManager {
     // Architecture: CLIENT sends mic → SERVER receives it → Use SERVER receiver for processing
     if (this.refs.micLoopbackStream && this.refs.micLoopbackStream.getAudioTracks().length > 0) {
       console.log("✅ Using SERVER receiver side mic stream for processing (simulating LiveKit server)");
-      this.refs.sourceNode = this.refs.inputContext.createMediaStreamSource(
+      this.refs.sourceNode = inputContext.createMediaStreamSource(
         this.refs.micLoopbackStream
       );
     } else {
       // Fallback: Direct connection if RTC loopback failed
       console.warn("⚠️ RTC loopback not available, using direct microphone connection");
-      this.refs.sourceNode = this.refs.inputContext.createMediaStreamSource(
+      this.refs.sourceNode = inputContext.createMediaStreamSource(
         this.refs.mediaStream
       );
     }
     
-    if (this.refs.inputNode) {
-      this.refs.sourceNode.connect(this.refs.inputNode);
-    }
+    this.refs.sourceNode.connect(inputNode);
     
     onStatusUpdate?.("Microphone connected...");
 
@@ -706,7 +716,7 @@ export class AudioManager {
     // Pass the input sample rate so the worklet can resample to provider's target rate
     const captureBufferSize = AUDIO_CAPTURE_CONFIG.bufferSize;
     this.refs.workletNode = new AudioWorkletNode(
-      this.refs.inputContext,
+      inputContext,
       'vowel-audio-processor',
       {
         processorOptions: {
@@ -842,9 +852,9 @@ export class AudioManager {
     };
 
     // Connect: Microphone -> Input Gain -> Worklet -> Destination
-    if (this.refs.inputNode && this.refs.workletNode) {
-      this.refs.inputNode.connect(this.refs.workletNode);
-      this.refs.workletNode.connect(this.refs.inputContext.destination);
+    if (this.refs.workletNode) {
+      inputNode.connect(this.refs.workletNode);
+      this.refs.workletNode.connect(inputContext.destination);
     }
 
     console.log("🎤 Microphone streaming started with AudioWorklet");

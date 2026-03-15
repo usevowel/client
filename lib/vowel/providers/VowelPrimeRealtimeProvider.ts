@@ -46,6 +46,7 @@ function getCloudflareAccessParams(): Record<string, string> {
  */
 export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
   private baseUrl: string = "wss://prime.vowel.to/v1/realtime";
+  private pendingConnectError: Error | null = null;
 
   constructor(config: RealtimeProviderConfig, callbacks: RealtimeProviderCallbacks) {
     super(config, callbacks, {
@@ -532,6 +533,12 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
         const errorObj = new Error(error.error?.error?.message || error.error?.message || error.message || 'Session error');
         // Attach the full error details to the error object
         (errorObj as any).rawError = error;
+        this.pendingConnectError = errorObj;
+
+        if (this.sessionCreatedResolver) {
+          this.sessionCreatedResolver();
+          this.sessionCreatedResolver = null;
+        }
         this.callbacks.onError?.(errorObj);
       }
     });
@@ -544,6 +551,7 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
    */
   async connect(): Promise<void> {
     try {
+      this.pendingConnectError = null;
       console.log('🔌 [vowel-prime] Connecting to Vowel Prime...');
       this.updateConnectionState("connecting");
 
@@ -743,6 +751,10 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       
       await this.session.connect(connectConfig);
 
+      if (this.pendingConnectError) {
+        throw this.pendingConnectError;
+      }
+
       this.isConnected = true;
       this.updateConnectionState("connected");
       console.log('✅ [vowel-prime] Connected successfully!');
@@ -757,6 +769,9 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       // This is especially important when using AssemblyAI STT which needs its socket connected
       // The listener was already set up in setupEventListeners() before connect() was called
       console.log('⏳ [vowel-prime] Waiting for session.created event...');
+      if (this.pendingConnectError) {
+        throw this.pendingConnectError;
+      }
       await new Promise<void>((resolve) => {
         this.sessionCreatedResolver = resolve;
         // Timeout after 10 seconds
@@ -768,6 +783,10 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
           }
         }, 10000);
       });
+
+      if (this.pendingConnectError) {
+        throw this.pendingConnectError;
+      }
       console.log('✅ [vowel-prime] Session fully ready (server confirmed ready, STT connected)');
 
       // Notify callbacks that connection is established
@@ -797,6 +816,7 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
 
     } catch (error) {
+      this.pendingConnectError = null;
       console.error('❌ [vowel-prime] Connection failed:', error);
       this.updateConnectionState("error");
       this.callbacks.onError?.(error as Error);
