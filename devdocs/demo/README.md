@@ -121,11 +121,13 @@ The AI automatically navigates based on your route configuration.
 ### Voice Configuration
 
 ```typescript
-voiceConfig: {
+language: 'en-US',
+initialGreetingPrompt: 'Welcome the user and ask how you can help.',
+turnDetectionPreset: 'balanced',
+_voiceConfig: {
   model: 'models/gemini-2.0-flash-exp',
-  voice: 'Puck',      // Friendly voice
-  language: 'en-US',
-  vadType: 'simple'   // Voice Activity Detection type (default)
+  voice: 'Puck',
+  vadType: 'simple'
 }
 ```
 
@@ -191,10 +193,10 @@ export const vowel = new Vowel({
         { path: '/products', description: 'Product catalog' },
         { path: '/cart', description: 'Shopping cart' }
       ],
-      voiceConfig: {
+      language: 'en-US',
+      _voiceConfig: {
         model: 'models/gemini-2.0-flash-exp',
-        voice: 'Puck',
-        language: 'en-US'
+        voice: 'Puck'
       }
     });
     
@@ -343,11 +345,11 @@ vowel.registerAction('placeOrder', {
 ### Changing Voice Settings
 
 ```typescript
-voiceConfig: {
+language: 'es-ES',
+_voiceConfig: {
   model: 'models/gemini-2.0-flash-exp',
-  voice: 'Charon',    // Professional voice
-  language: 'es-ES',  // Spanish
-  vadType: 'simple'   // Use fast energy-based VAD
+  voice: 'Charon',
+  vadType: 'simple'
 }
 ```
 
@@ -546,4 +548,3 @@ Having issues? Check:
 ---
 
 **Happy voice coding! 🎤✨**
-

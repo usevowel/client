@@ -29,6 +29,7 @@ export type {
   FloatingCursorConfig,
   FloatingCursorUpdate,
   VADType,
+  VowelTurnDetectionPreset,
   TurnDetectionMode,
   TurnDetectionConfig,
   ClientVADConfig,

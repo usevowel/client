@@ -477,9 +477,8 @@ export interface VowelPrimeConfig {
   environment?: VowelPrimeEnvironment;
 }
 
-/**
- * Voice configuration options
- */
+export type VowelTurnDetectionPreset = 'aggressive' | 'balanced' | 'conservative';
+
 export interface VowelVoiceConfig {
   /** Ephemeral token for direct connections (bypasses token endpoint) */
   token?: string;
@@ -573,8 +572,12 @@ export interface VowelConfig {
   routes: VowelRoute[];
   /** Custom actions the AI can perform */
   actions: Record<string, VowelAction>;
-  /** Voice configuration */
+  /** @deprecated Prefer `_voiceConfig`. */
   voiceConfig?: VowelVoiceConfig;
+  _voiceConfig?: VowelVoiceConfig;
+  language?: string;
+  initialGreetingPrompt?: string;
+  turnDetectionPreset?: VowelTurnDetectionPreset;
   /** Custom system instruction (overrides default) */
   systemInstructionOverride?: string;
 }
@@ -762,8 +765,12 @@ export interface VowelClientConfig {
   /** Optional: Custom routes (can also be auto-detected from adapters) */
   routes?: VowelRoute[];
 
-  /** Optional: Voice configuration */
+  /** @deprecated Prefer `_voiceConfig`. */
   voiceConfig?: VowelVoiceConfig;
+  _voiceConfig?: VowelVoiceConfig;
+  language?: string;
+  initialGreetingPrompt?: string;
+  turnDetectionPreset?: VowelTurnDetectionPreset;
 
   /** Optional: Custom system instructions for the AI agent */
   instructions?: string;

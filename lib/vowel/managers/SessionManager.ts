@@ -86,6 +86,9 @@ export interface SessionConfig {
   audioManager: AudioManager;
   /** Voice configuration */
   voiceConfig?: VowelVoiceConfig;
+  language?: string;
+  initialGreetingPrompt?: string;
+  turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
   /** Custom system instructions for the AI agent */
   instructions?: string;
   /** 
@@ -483,7 +486,9 @@ export class SessionManager {
   }
 
   private scheduleHostedInitialGreeting(provider: ProviderType): void {
-    const initialGreetingPrompt = this.config.voiceConfig?.initialGreetingPrompt?.trim();
+    const initialGreetingPrompt =
+      this.config.initialGreetingPrompt?.trim() ??
+      this.config.voiceConfig?.initialGreetingPrompt?.trim();
     if (!initialGreetingPrompt || !HOSTED_INITIAL_GREETING_PROVIDERS.has(provider)) {
       return;
     }
@@ -1265,19 +1270,25 @@ export class SessionManager {
       const clientConfig = {
         routes: this.config.routes,
         actions: this.config.toolManager.getToolDefinitions(),
+        language: this.config.language,
+        initialGreetingPrompt: this.config.initialGreetingPrompt,
+        turnDetectionPreset: this.config.turnDetectionPreset,
+        _voiceConfig: {
+          ...this.config.voiceConfig,
+          turnDetection: resolvedTurnDetection,
+        },
         voiceConfig: {
           ...this.config.voiceConfig,
           turnDetection: resolvedTurnDetection,
         },
         systemInstructionOverride: instructions, // Server expects this property name (now includes initial context)
-        initialGreetingPrompt: this.config.voiceConfig?.initialGreetingPrompt, // Pass initial greeting prompt to server
       };
 
       let tokenResponse: TokenResponse;
 
       // Check for direct token in voiceConfig (bypasses token endpoint)
       if (this.config.voiceConfig?.token) {
-        console.log("🔑 Using direct token from voiceConfig (bypassing token endpoint)");
+        console.log("🔑 Using direct token from _voiceConfig (bypassing token endpoint)");
         const directToken = this.config.voiceConfig.token;
         
         // For direct tokens, we need to determine provider and model from config

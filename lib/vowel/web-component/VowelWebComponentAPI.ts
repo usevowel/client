@@ -69,10 +69,12 @@ export interface VowelVoiceWidgetElement extends HTMLElement {
    */
   setConfig(config: {
     systemInstructionOverride?: string;
-    voiceConfig?: {
+    language?: string;
+    initialGreetingPrompt?: string;
+    turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
+    _voiceConfig?: {
       model?: string;
       voice?: string;
-      language?: string;
     };
   }): void;
 
@@ -216,4 +218,3 @@ export function waitForVowelReady(element: HTMLElement): Promise<Vowel> {
  * Export types for TypeScript users
  */
 export type { VowelAction, ActionHandler } from "../types";
-

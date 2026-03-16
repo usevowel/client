@@ -35,6 +35,7 @@ export type {
   VowelAction,
   VowelActionParameter,
   VowelVoiceConfig,
+  VowelTurnDetectionPreset,
   VowelToolResult,
   VowelConfig,
   VowelClientConfig,

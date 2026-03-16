@@ -110,22 +110,59 @@ export class Vowel {
     });
     console.log(`🎙️ Vowel Client v${VOWEL_VERSION} (built: ${buildTime})`);
 
-    // Validate config - either appId (for platform tokens) or voiceConfig.token (for direct connections) is required
+    const legacyVoiceConfig = config.voiceConfig;
+    const hiddenVoiceConfig: VowelVoiceConfig | undefined =
+      legacyVoiceConfig || config._voiceConfig
+        ? {
+            ...(legacyVoiceConfig ?? {}),
+            ...(config._voiceConfig ?? {}),
+          }
+        : undefined;
+    const resolvedLanguage = config.language ?? hiddenVoiceConfig?.language;
+    const resolvedInitialGreetingPrompt =
+      config.initialGreetingPrompt ?? hiddenVoiceConfig?.initialGreetingPrompt;
+    const resolvedTurnDetectionPreset =
+      config.turnDetectionPreset ?? hiddenVoiceConfig?.turnDetectionPreset;
+
     const hasAppId = !!config.appId;
-    const hasDirectToken = !!config.voiceConfig?.token;
+    const hasDirectToken = !!hiddenVoiceConfig?.token;
 
     if (hasDirectToken) {
       warnDeprecated(
-        'voiceConfig.token',
+        legacyVoiceConfig?.token ? 'voiceConfig.token' : '_voiceConfig.token',
         'connection.token (in new connection-based config)',
         'See https://vowel.to/docs/guide/connection-models and https://vowel.to/docs/recipes/connection-paradigms for current setup guidance.'
       );
     }
-    if (config.voiceConfig?.provider) {
+    if (legacyVoiceConfig) {
       warnDeprecated(
-        'voiceConfig.provider',
+        'voiceConfig',
+        '_voiceConfig',
+        'Hosted flows should prefer app settings managed by platform/core. Use top-level language, initialGreetingPrompt, and turnDetectionPreset for supported public config.'
+      );
+    }
+    if (hiddenVoiceConfig?.provider) {
+      warnDeprecated(
+        legacyVoiceConfig?.provider ? 'voiceConfig.provider' : '_voiceConfig.provider',
         'connection.provider (in new connection-based config)',
         'Provider selection will be explicit in the new connection model.'
+      );
+    }
+    if (legacyVoiceConfig?.language) {
+      warnDeprecated('voiceConfig.language', 'language', 'Move language to the top level client config.');
+    }
+    if (legacyVoiceConfig?.initialGreetingPrompt) {
+      warnDeprecated(
+        'voiceConfig.initialGreetingPrompt',
+        'initialGreetingPrompt',
+        'Move initialGreetingPrompt to the top level client config.'
+      );
+    }
+    if (legacyVoiceConfig?.turnDetectionPreset) {
+      warnDeprecated(
+        'voiceConfig.turnDetectionPreset',
+        'turnDetectionPreset',
+        'Move turnDetectionPreset to the top level client config.'
       );
     }
     if (config.tokenEndpoint) {
@@ -145,7 +182,7 @@ export class Vowel {
 
     if (!hasAppId && !hasDirectToken) {
       throw new Error(
-        'VowelClient requires either appId (for platform-managed tokens) or voiceConfig.token (for direct connections) to be provided in config. ' +
+        'VowelClient requires either appId (for platform-managed tokens) or _voiceConfig.token (for direct connections) to be provided in config. ' +
         'See https://vowel.to/docs/recipes/connection-paradigms for more information.'
       );
     }
@@ -168,6 +205,10 @@ export class Vowel {
 
     this.config = {
       ...config,
+      _voiceConfig: hiddenVoiceConfig,
+      language: resolvedLanguage,
+      initialGreetingPrompt: resolvedInitialGreetingPrompt,
+      turnDetectionPreset: resolvedTurnDetectionPreset,
       instructions, // Use the resolved value (prefer instructions over systemInstructionOverride)
       systemInstructionOverride: instructions, // Keep for backward compatibility
       floatingCursor: floatingCursorConfig
@@ -256,7 +297,10 @@ export class Vowel {
       toolManager: this.toolManager,
       audioManager: this.audioManager,
       typingSoundManager: this.typingSoundManager,
-      voiceConfig: config.voiceConfig,
+      voiceConfig: hiddenVoiceConfig,
+      language: resolvedLanguage,
+      initialGreetingPrompt: resolvedInitialGreetingPrompt,
+      turnDetectionPreset: resolvedTurnDetectionPreset,
       instructions: instructions, // Use resolved instructions
       systemInstructionOverride: instructions, // Keep for backward compatibility
       convexUrl: config.convexUrl,
@@ -832,7 +876,7 @@ export class Vowel {
    * Get voice configuration
    */
   get voiceConfig(): VowelVoiceConfig | undefined {
-    return this.config.voiceConfig;
+    return this.config._voiceConfig ?? this.config.voiceConfig;
   }
 
   /**
