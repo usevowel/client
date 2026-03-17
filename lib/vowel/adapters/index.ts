@@ -1,17 +1,10 @@
 /**
  * Adapters for Vowel
- * 
+ *
  * Provides navigation and automation adapters for various platforms:
  * - Navigation: Handles WHERE to go (routing)
  * - Automation: Handles WHAT to do (page interaction)
  */
-
-// ========================================
-// Legacy Router Adapters (Deprecated)
-// ========================================
-
-export { tanstackRouterAdapter, tanstackRouterHookAdapter } from "./tanstack";
-export type { RouterAdapter } from "../types";
 
 // ========================================
 // New Dual Adapter Architecture
@@ -19,11 +12,7 @@ export type { RouterAdapter } from "../types";
 
 // Navigation Adapters
 export {
-  DirectNavigationAdapter,
-  ControlledNavigationAdapter,
-  TanStackNavigationAdapter,
   createTanStackHookAdapter,
-  ReactRouterNavigationAdapter,
   createReactRouterAdapter,
   createReactRouterHookAdapter
 } from "./navigation";
@@ -36,11 +25,7 @@ export type {
 } from "./navigation/react-router-navigation-adapter";
 
 // Automation Adapters
-export {
-  DirectAutomationAdapter,
-  ControlledAutomationAdapter,
-  createControlledAutomationListener
-} from "./automation";
+export { createControlledAutomationListener } from "./automation";
 
 // Helper Functions
 export {
@@ -49,7 +34,7 @@ export {
   createTanStackAdapters,
   createNextJSAdapters,
   createVueRouterAdapters,
-  createReactRouterAdapters
+  createReactRouterAdapters,
 } from "./helpers";
 export type {
   DirectAdaptersOptions,
@@ -67,4 +52,3 @@ export type {
   AutomationSearchResults,
   AutomationActionResult
 } from "../types";
-

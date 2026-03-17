@@ -1,7 +1,7 @@
 {
   "name": "@vowel.to/client",
   "type": "module",
-  "version": "0.1.2-beta.570",
+  "version": "0.2.0-beta",
   "packageManager": "bun@1.1.0",
   "description": "Framework-agnostic voice agent library powered by Google Gemini Live API",
   "main": "./dist/client/index.cjs",

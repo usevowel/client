@@ -6,7 +6,8 @@
  * Platform-agnostic - works with any website
  */
 
-import type { RouterAdapter, VowelRoute } from "../../types";
+import type { VowelRoute } from "../../types";
+import type { RouterAdapter } from "../../types/types";
 
 export interface ControlledNavigationRouterOptions {
   /**
@@ -266,4 +267,3 @@ export class ControlledNavigationRouter implements RouterAdapter {
     });
   }
 }
-

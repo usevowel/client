@@ -10,7 +10,6 @@ import './lib/vowel/styles/styles.css';
 
 // Core client library (framework-agnostic)
 export * from './lib/vowel/core';
-export * from './lib/vowel/managers';
 export * from './lib/vowel/adapters';
 export * from './lib/vowel/types';
 export * from './lib/vowel/version';
@@ -26,7 +25,6 @@ export type {
   VowelRoute,
   VowelVoiceConfig,
   VowelActionParameter,
-  RouterAdapter,
   ActionHandler,
   VowelTranscript,
   VowelLiveState,
@@ -36,4 +34,3 @@ export type {
 
 // Re-export version from version module for consistency
 export { VOWEL_VERSION as VERSION } from './lib/vowel/version';
-

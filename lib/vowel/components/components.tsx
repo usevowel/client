@@ -16,7 +16,6 @@ export { TermsPrivacyModal, type TermsPrivacyModalProps } from "./TermsPrivacyMo
 // React components for controlled tab UI
 export { FloatingCursorComponent, type FloatingCursorComponentProps } from "./FloatingCursorComponent";
 export { ControlledBanner, type ControlledBannerProps, type VoiceSessionState } from "./ControlledBanner"; // Top banner with mesh gradient
-export { ControlledBannerLegacy, type ControlledBannerLegacyProps } from "./ControlledBannerLegacy"; // Original top banner with CSS gradient
 export { ControlledByVowelFrame, type ControlledByVowelFrameProps } from "./ControlledByVowelFrame"; // Full page border frame
 export { FloatingMicButton, type FloatingMicButtonProps, type FloatingMicButtonState } from "./FloatingMicButton";
 export { Modal, type ModalProps } from "./Modal";

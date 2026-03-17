@@ -43,3 +43,6 @@ Thumbs.db
 # Misc
 *.pem
 .vercel
+
+# Test directory (contains test credentials)
+testing/

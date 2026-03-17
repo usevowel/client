@@ -10,25 +10,6 @@
 // Core Client
 export { Vowel } from "./core";
 
-// Managers
-export {
-  StateManager,
-  AudioManager,
-  SessionManager,
-  ToolManager,
-} from "./managers";
-export type {
-  VoiceSessionState,
-  StateChangeListener,
-  MessageHandler,
-  StatusUpdateHandler,
-  SessionConfig,
-  ToolContext,
-  ToolHandler,
-  Tool,
-  ToolResult,
-} from "./managers";
-
 // React Components & Hooks
 export {
   VowelProvider,
@@ -54,10 +35,10 @@ export type {
   VowelAction,
   VowelActionParameter,
   VowelVoiceConfig,
+  VowelTurnDetectionPreset,
   VowelToolResult,
   VowelConfig,
   VowelClientConfig,
-  RouterAdapter,
   NavigationAdapter,
   AutomationAdapter,
   AutomationSearchOptions,

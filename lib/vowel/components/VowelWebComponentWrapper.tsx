@@ -9,7 +9,8 @@ import { VowelProvider } from "./VowelProviderSimple";
 import { VowelAgent } from "./components";
 import type { VowelAgentProps } from "./components";
 import { Vowel } from "../core/VowelClient";
-import type { VowelClientConfig, RouterAdapter } from "../types";
+import type { VowelClientConfig } from "../types";
+import type { RouterAdapter } from "../types/types";
 
 // Import platform adapters
 import {
@@ -69,11 +70,12 @@ export interface WebComponentAction {
 export interface WebComponentConfig {
   /** Override the system prompt/instruction */
   systemInstructionOverride?: string;
-  /** Voice configuration options */
-  voiceConfig?: {
+  language?: string;
+  initialGreetingPrompt?: string;
+  turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
+  _voiceConfig?: {
     model?: string;
     voice?: string;
-    language?: string;
   };
 }
 
@@ -687,8 +689,17 @@ export function VowelWebComponentWrapper({
           ...(parsedConfig.systemInstructionOverride && {
             systemInstructionOverride: parsedConfig.systemInstructionOverride,
           }),
-          ...(parsedConfig.voiceConfig && {
-            voiceConfig: parsedConfig.voiceConfig,
+          ...(parsedConfig.language && {
+            language: parsedConfig.language,
+          }),
+          ...(parsedConfig.initialGreetingPrompt && {
+            initialGreetingPrompt: parsedConfig.initialGreetingPrompt,
+          }),
+          ...(parsedConfig.turnDetectionPreset && {
+            turnDetectionPreset: parsedConfig.turnDetectionPreset,
+          }),
+          ...(parsedConfig._voiceConfig && {
+            _voiceConfig: parsedConfig._voiceConfig,
           }),
           // Add floating cursor config
           ...(floatingCursorConfig && { floatingCursor: floatingCursorConfig }),
@@ -769,7 +780,7 @@ export function VowelWebComponentWrapper({
             hasAutomationAdapter: !!automationAdapter,
             hasRouter: !!router,
             hasSystemInstructionOverride: !!parsedConfig.systemInstructionOverride,
-            hasVoiceConfig: !!parsedConfig.voiceConfig,
+            hasVoiceConfig: !!parsedConfig._voiceConfig,
             floatingCursorEnabled: !!floatingCursorConfig?.enabled,
           });
           
@@ -1006,4 +1017,3 @@ export function VowelWebComponentWrapper({
     </VowelProvider>
   );
 }
-

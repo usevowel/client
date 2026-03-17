@@ -29,10 +29,12 @@ interface InstanceState {
   /** Instance configuration */
   config: {
     systemInstructionOverride?: string;
-    voiceConfig?: {
+    language?: string;
+    initialGreetingPrompt?: string;
+    turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
+    _voiceConfig?: {
       model?: string;
       voice?: string;
-      language?: string;
     };
   };
 }
@@ -198,4 +200,3 @@ export const vowelRegistry = new VowelWebComponentRegistry();
 if (typeof window !== 'undefined') {
   (window as any).__VOWEL_REGISTRY__ = vowelRegistry;
 }
-
