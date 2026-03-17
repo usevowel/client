@@ -4,7 +4,7 @@
  * Comprehensive stories showing all states of the embedded microphone button
  */
 
-import type { Meta, StoryObj } from '@storybook/react';
+import type { Meta, StoryObj } from '@storybook/react-vite';
 import { VowelMicrophone } from '../VowelMicrophone';
 import { VowelProvider } from '../VowelProviderSimple';
 import { Vowel } from '../../core';
