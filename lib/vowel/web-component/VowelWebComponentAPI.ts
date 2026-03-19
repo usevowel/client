@@ -64,7 +64,7 @@ export interface VowelVoiceWidgetElement extends HTMLElement {
    * @example
    * widget.setConfig({
    *   systemInstructionOverride: 'You are a helpful assistant',
-   *   voiceConfig: { voice: 'Puck' }
+   *   _voiceConfig: { voice: 'Puck' }
    * });
    */
   setConfig(config: {

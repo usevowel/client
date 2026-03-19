@@ -416,10 +416,12 @@ export interface TurnDetectionConfig {
  * 
  * @example
  * ```typescript
- * const voiceConfig = {
- *   toolRetry: {
- *     maxRetries: 3,       // Max failures per tool before warning
- *     maxSteps: 30         // Max total tool calls per session
+ * const config = {
+ *   _voiceConfig: {
+ *     toolRetry: {
+ *       maxRetries: 3,       // Max failures per tool before warning
+ *       maxSteps: 30         // Max total tool calls per session
+ *     }
  *   }
  * };
  * ```

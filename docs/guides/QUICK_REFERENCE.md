@@ -122,7 +122,7 @@ unsubscribe();
 ```typescript
 const vowel = new Vowel({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     // Provider
     provider: 'grok', // 'gemini' | 'openai' | 'grok' | 'vowel-prime'
     

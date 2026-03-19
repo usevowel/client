@@ -58,8 +58,8 @@ export interface ToolRetryConfig {
   maxSteps?: number;      // Max total tool calls per session (default: 30)
 }
 
-// Usage in VowelVoiceConfig
-voiceConfig: {
+// Usage in Vowel client config
+_voiceConfig: {
   toolRetry: {
     maxRetries: 3,       // Max failures before stern warning
     maxSteps: 30         // Max total tool calls to prevent infinite loops
@@ -225,7 +225,7 @@ import { VowelClient } from '@vowel.to/client';
 
 const vowel = new VowelClient({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     // AI-guided retry enabled by default
     // Max 3 failures per tool, 30 total steps
     // No configuration needed unless you want to customize
@@ -238,7 +238,7 @@ const vowel = new VowelClient({
 ```typescript
 const vowel = new VowelClient({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     toolRetry: {
       maxRetries: 5,        // Allow 5 failures per tool before warning
       maxSteps: 50          // Allow up to 50 total tool calls
@@ -252,7 +252,7 @@ const vowel = new VowelClient({
 ```typescript
 const vowel = new VowelClient({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     toolRetry: {
       maxRetries: 2,        // Only 2 failures allowed per tool
       maxSteps: 20          // Lower step limit for simpler use cases
@@ -327,7 +327,7 @@ bun run dev
 ## Troubleshooting
 
 ### Issue: "Step limit reached" too quickly
-**Solution**: Increase `maxSteps` in `voiceConfig.toolRetry.maxSteps`
+**Solution**: Increase `maxSteps` in `_voiceConfig.toolRetry.maxSteps`
 
 ### Issue: Tool keeps retrying indefinitely
 **Solution**: Verify `maxRetries` is set correctly (default: 3)
@@ -351,7 +351,7 @@ No breaking changes! The retry mechanism is enabled by default with sensible def
 
 **Optional**: Add explicit configuration if you want custom behavior:
 ```typescript
-voiceConfig: {
+_voiceConfig: {
   toolRetry: {
     maxRetries: 5,
     maxSteps: 100
@@ -421,4 +421,3 @@ This implementation provides:
 **Philosophy**: Trust the AI to handle errors intelligently rather than hardcoded automatic retries.
 
 **No Breaking Changes**: All features work with sensible defaults, no code changes required for existing applications.
-

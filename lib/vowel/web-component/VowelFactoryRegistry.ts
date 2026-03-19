@@ -54,7 +54,7 @@ class VowelFactoryRegistry {
    * window.registerVowelFactory(async (config) => {
    *   const vowel = new window.Vowel({
    *     appId: config.appId,
-   *     voiceConfig: {
+   *     _voiceConfig: {
    *       provider: 'vowel-prime',
    *       model: 'openai/gpt-oss-120b',
    *     },
@@ -176,6 +176,5 @@ if (typeof window !== "undefined") {
     vowelFactoryRegistry.registerFactory(factory);
   };
 }
-
 
 

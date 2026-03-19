@@ -297,7 +297,7 @@ export class Vowel {
       toolManager: this.toolManager,
       audioManager: this.audioManager,
       typingSoundManager: this.typingSoundManager,
-      voiceConfig: hiddenVoiceConfig,
+      _voiceConfig: hiddenVoiceConfig,
       language: resolvedLanguage,
       initialGreetingPrompt: resolvedInitialGreetingPrompt,
       turnDetectionPreset: resolvedTurnDetectionPreset,
