@@ -18,9 +18,13 @@ import { WebSocketRealtimeProviderBase } from "./WebSocketRealtimeProviderBase";
  */
 export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
   private static readonly PREFERRED_INPUT_CHUNK_SIZE_SAMPLES = 768;
+  private static readonly DEDUPE_CACHE_LIMIT = 100;
   private baseUrl = "wss://api.x.ai/v1/realtime";
   private hasSessionUpdatedAck = false;
   private sessionUpdatedResolver: (() => void) | null = null;
+  private emittedResponseCreatedIds = new Set<string>();
+  private emittedResponseDoneIds = new Set<string>();
+  private emittedTranscriptKeys = new Set<string>();
 
   constructor(config: RealtimeProviderConfig, callbacks: RealtimeProviderCallbacks) {
     super(config, callbacks);
@@ -62,25 +66,58 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
     return this.getPreferredInputChunkSizeSamples() * 2;
   }
 
-  protected getDefaultTurnDetectionMode(): 'client_vad' | 'server_vad' | 'disabled' {
-    return 'server_vad';
-  }
-
   protected buildTurnDetectionConfig(): any {
     const turnDetection = this.config.metadata?.turnDetection as any;
-    const turnDetectionMode = this.getResolvedTurnDetectionMode();
+    const turnDetectionMode = turnDetection?.mode ?? 'server_vad';
 
     if (turnDetectionMode === 'client_vad' || turnDetectionMode === 'disabled') {
       return { type: 'disabled' };
     }
 
     const serverVADConfig = turnDetection?.serverVAD;
-    return {
+    const config: Record<string, unknown> = {
       type: 'server_vad',
-      threshold: serverVADConfig?.threshold ?? 0.6,
-      silenceDurationMs: serverVADConfig?.silenceDurationMs ?? 800,
-      prefixPaddingMs: serverVADConfig?.prefixPaddingMs ?? 333,
-      interruptResponse: serverVADConfig?.interruptResponse ?? true,
+    };
+
+    if (serverVADConfig?.threshold !== undefined) {
+      config.threshold = serverVADConfig.threshold;
+    }
+    if (serverVADConfig?.silenceDurationMs !== undefined) {
+      config.silenceDurationMs = serverVADConfig.silenceDurationMs;
+    }
+    if (serverVADConfig?.prefixPaddingMs !== undefined) {
+      config.prefixPaddingMs = serverVADConfig.prefixPaddingMs;
+    }
+    if (serverVADConfig?.interruptResponse !== undefined) {
+      config.interruptResponse = serverVADConfig.interruptResponse;
+    }
+
+    return config;
+  }
+
+  private buildSessionConfig(transport: GrokRealtimeWebSocketTransport, voiceToUse: string): any {
+    const inputAudioFormat = this.getInputAudioFormat();
+    const outputAudioFormat = this.getOutputAudioFormat();
+    const turnDetectionConfig = this.buildTurnDetectionConfig();
+    const inputConfig: Record<string, unknown> = {
+      format: { type: 'audio/pcm', rate: inputAudioFormat.sampleRate },
+    };
+
+    if (turnDetectionConfig) {
+      inputConfig.turnDetection = turnDetectionConfig;
+    }
+
+    return {
+      transport,
+      config: {
+        audio: {
+          input: inputConfig,
+          output: {
+            format: { type: 'audio/pcm', rate: outputAudioFormat.sampleRate },
+            voice: voiceToUse,
+          },
+        },
+      },
     };
   }
 
@@ -131,6 +168,87 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
     }
   }
 
+  private rememberDedupeKey(cache: Set<string>, key: string | null | undefined): boolean {
+    if (!key) {
+      return false;
+    }
+
+    if (cache.has(key)) {
+      return true;
+    }
+
+    cache.add(key);
+
+    if (cache.size > GrokRealtimeProvider.DEDUPE_CACHE_LIMIT) {
+      const oldestKey = cache.values().next().value;
+      if (oldestKey) {
+        cache.delete(oldestKey);
+      }
+    }
+
+    return false;
+  }
+
+  private emitTranscriptDone(params: {
+    transcript?: string | null;
+    role: 'user' | 'assistant';
+    itemId?: string | null;
+    responseId?: string | null;
+    rawMessage: any;
+  }): void {
+    const transcript = params.transcript?.trim();
+    if (!transcript) {
+      return;
+    }
+
+    const dedupeId = params.itemId ?? params.responseId ?? transcript;
+    if (this.rememberDedupeKey(this.emittedTranscriptKeys, `${params.role}:${dedupeId}`)) {
+      return;
+    }
+
+    this.callbacks.onMessage?.({
+      type: RealtimeMessageType.TRANSCRIPT_DONE,
+      payload: {
+        transcript,
+        role: params.role,
+        responseId: params.responseId ?? undefined,
+        itemId: params.itemId ?? undefined,
+      },
+      rawMessage: params.rawMessage,
+    });
+  }
+
+  private emitResponseCreated(responseId: string | null | undefined, response: any, rawMessage: any): void {
+    if (this.rememberDedupeKey(this.emittedResponseCreatedIds, responseId)) {
+      return;
+    }
+
+    this.callbacks.onMessage?.({
+      type: RealtimeMessageType.RESPONSE_CREATED,
+      payload: {
+        responseId: responseId ?? undefined,
+        response,
+      },
+      rawMessage,
+    });
+  }
+
+  private emitResponseDone(responseId: string | null | undefined, response: any, usage: any, rawMessage: any): void {
+    if (this.rememberDedupeKey(this.emittedResponseDoneIds, responseId)) {
+      return;
+    }
+
+    this.callbacks.onMessage?.({
+      type: RealtimeMessageType.RESPONSE_DONE,
+      payload: {
+        responseId: responseId ?? undefined,
+        response,
+        usage,
+      },
+      rawMessage,
+    });
+  }
+
   private setupEventListeners(): void {
     if (!this.session) {
       console.warn("⚠️ [grok] Cannot setup listeners: no session");
@@ -171,51 +289,30 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
 
       if (event.type === 'conversation.item.input_audio_transcription.completed' && event.transcript) {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.TRANSCRIPT_DONE,
-          payload: {
-            transcript: event.transcript,
-            role: 'user',
-            itemId: event.item_id,
-          },
+        this.emitTranscriptDone({
+          transcript: event.transcript,
+          role: 'user',
+          itemId: event.item_id,
           rawMessage: event,
         });
       }
 
       if (event.type === 'response.text.done' && event.text) {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.TRANSCRIPT_DONE,
-          payload: {
-            transcript: event.text,
-            role: 'assistant',
-            responseId: event.response_id || event.responseId,
-            itemId: event.item_id || event.itemId,
-          },
+        this.emitTranscriptDone({
+          transcript: event.text,
+          role: 'assistant',
+          responseId: event.response_id || event.responseId,
+          itemId: event.item_id || event.itemId,
           rawMessage: event,
         });
       }
 
       if (event.type === 'response.created') {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.RESPONSE_CREATED,
-          payload: {
-            responseId: event?.response?.id,
-            response: event?.response,
-          },
-          rawMessage: event,
-        });
+        this.emitResponseCreated(event?.response?.id, event?.response, event);
       }
 
       if (event.type === 'response.done') {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.RESPONSE_DONE,
-          payload: {
-            responseId: event?.response?.id,
-            response: event?.response,
-            usage: event?.response?.usage,
-          },
-          rawMessage: event,
-        });
+        this.emitResponseDone(event?.response?.id, event?.response, event?.response?.usage, event);
       }
       if (event.type === 'response.cancelled') {
         this.callbacks.onMessage?.({
@@ -245,14 +342,7 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
 
     session.on('turn_started', (event: any) => {
       const responseId = event?.providerData?.response?.id;
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.RESPONSE_CREATED,
-        payload: {
-          responseId,
-          response: event?.providerData?.response,
-        },
-        rawMessage: event,
-      });
+      this.emitResponseCreated(responseId, event?.providerData?.response, event);
 
       if (responseId) {
         this.callbacks.onMessage?.({
@@ -277,14 +367,11 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
 
           for (const contentPart of outputItem.content) {
             if (contentPart.type === 'audio' && contentPart.transcript) {
-              this.callbacks.onMessage?.({
-                type: RealtimeMessageType.TRANSCRIPT_DONE,
-                payload: {
-                  transcript: contentPart.transcript,
-                  role: 'assistant',
-                  responseId: event?.response?.id,
-                  itemId: outputItem.id,
-                },
+              this.emitTranscriptDone({
+                transcript: contentPart.transcript,
+                role: 'assistant',
+                responseId: event?.response?.id,
+                itemId: outputItem.id,
                 rawMessage: event,
               });
             }
@@ -292,15 +379,7 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         }
       }
 
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.RESPONSE_DONE,
-        payload: {
-          responseId: event?.response?.id,
-          response: event?.response,
-          usage: event?.response?.usage,
-        },
-        rawMessage: event,
-      });
+      this.emitResponseDone(event?.response?.id, event?.response, event?.response?.usage, event);
     });
 
     session.on('input_audio_buffer.speech_started', () => {
@@ -343,13 +422,10 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
 
     session.on('conversation.item.input_audio_transcription.completed', (event: any) => {
       if (event.transcript) {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.TRANSCRIPT_DONE,
-          payload: {
-            transcript: event.transcript,
-            role: 'user',
-            itemId: event.item_id,
-          },
+        this.emitTranscriptDone({
+          transcript: event.transcript,
+          role: 'user',
+          itemId: event.item_id,
           rawMessage: event,
         });
       }
@@ -431,10 +507,6 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
 
       this.agent = new RealtimeAgent(agentConfig);
 
-      const inputAudioFormat = this.getInputAudioFormat();
-      const outputAudioFormat = this.getOutputAudioFormat();
-      const turnDetectionConfig = this.buildTurnDetectionConfig();
-
       const transport = new GrokRealtimeWebSocketTransport({
         url: this.baseUrl,
         useInsecureApiKey: true,
@@ -444,22 +516,7 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         },
       });
 
-      const sessionConfig: any = {
-        transport,
-        model: this.config.model,
-        config: {
-          audio: {
-            input: {
-              format: { type: 'audio/pcm', rate: inputAudioFormat.sampleRate },
-              turnDetection: turnDetectionConfig,
-            },
-            output: {
-              format: { type: 'audio/pcm', rate: outputAudioFormat.sampleRate },
-              voice: voiceToUse,
-            },
-          },
-        },
-      };
+      const sessionConfig = this.buildSessionConfig(transport, voiceToUse);
 
       this.session = new RealtimeSession(this.agent, sessionConfig);
       this.setupEventListeners();

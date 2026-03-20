@@ -701,6 +701,7 @@ export class SessionManager {
 
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED:
           // Server-side VAD detected user started speaking
+          this.clearPendingInitialGreeting();
           this.setServerSpeechActive(true, "started");
           if (this.config.voiceConfig?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🗣️ [SessionManager] User started speaking (server VAD)");
@@ -724,6 +725,7 @@ export class SessionManager {
         case RealtimeMessageType.RESPONSE_CREATED:
           // Response generation started (turn_started) - start thinking state
           // This is when AI actually begins processing/generating a response
+          this.clearPendingInitialGreeting();
           this.isResponseInProgress = true;
           
           // Clear interrupt flag so new audio can play
@@ -1897,6 +1899,7 @@ export class SessionManager {
     }
 
     try {
+      this.clearPendingInitialGreeting();
       console.log('📢 Notifying AI of event:', eventDetails);
       if (context) {
         console.log('   Context:', context);
@@ -1946,6 +1949,7 @@ export class SessionManager {
     }
 
     try {
+      this.clearPendingInitialGreeting();
       console.log('📝 Sending text to AI:', text);
       if (this.provider.sendText) {
         await this.provider.sendText(text);
@@ -1983,6 +1987,7 @@ export class SessionManager {
     }
 
     try {
+      this.clearPendingInitialGreeting();
       console.log('🖼️ Sending image to AI:', imageUrl.substring(0, 100) + '...');
       if (this.provider.sendImage) {
         await this.provider.sendImage(imageUrl);
