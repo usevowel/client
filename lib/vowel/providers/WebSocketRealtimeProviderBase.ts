@@ -302,7 +302,7 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
         return;
       }
 
-      const chunkSize = 8192;
+      const chunkSize = this.getPreferredCommitChunkSizeBytes() ?? 8192;
       const totalBytes = concatenatedAudioBuffer.byteLength;
       const numChunks = Math.ceil(totalBytes / chunkSize);
 

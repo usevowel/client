@@ -17,6 +17,7 @@ import { WebSocketRealtimeProviderBase } from "./WebSocketRealtimeProviderBase";
  * WebSocket creator for the SDK transport.
  */
 export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
+  private static readonly PREFERRED_INPUT_CHUNK_SIZE_SAMPLES = 768;
   private baseUrl = "wss://api.x.ai/v1/realtime";
   private hasSessionUpdatedAck = false;
   private sessionUpdatedResolver: (() => void) | null = null;
@@ -45,15 +46,89 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
   override getOutputAudioFormat(): AudioFormat {
     const configuredOutput = this.config.audioConfig?.output ?? this.config.metadata?.audioConfig?.output ?? {};
     return {
-      mimeType: configuredOutput.mimeType ?? "audio/pcm;rate=48000",
-      sampleRate: configuredOutput.sampleRate ?? 48000,
+      mimeType: configuredOutput.mimeType ?? "audio/pcm;rate=24000",
+      sampleRate: configuredOutput.sampleRate ?? 24000,
       channels: configuredOutput.channels ?? 1,
       encoding: configuredOutput.encoding ?? "pcm16",
     };
   }
 
+  override getPreferredInputChunkSizeSamples(): number {
+    // xAI recommends flushing realtime microphone audio in roughly 400-800 sample chunks.
+    return GrokRealtimeProvider.PREFERRED_INPUT_CHUNK_SIZE_SAMPLES;
+  }
+
+  override getPreferredCommitChunkSizeBytes(): number {
+    return this.getPreferredInputChunkSizeSamples() * 2;
+  }
+
   protected getDefaultTurnDetectionMode(): 'client_vad' | 'server_vad' | 'disabled' {
     return 'server_vad';
+  }
+
+  protected buildTurnDetectionConfig(): any {
+    const turnDetection = this.config.metadata?.turnDetection as any;
+    const turnDetectionMode = this.getResolvedTurnDetectionMode();
+
+    if (turnDetectionMode === 'client_vad' || turnDetectionMode === 'disabled') {
+      return { type: 'disabled' };
+    }
+
+    const serverVADConfig = turnDetection?.serverVAD;
+    return {
+      type: 'server_vad',
+      threshold: serverVADConfig?.threshold ?? 0.6,
+      silenceDurationMs: serverVADConfig?.silenceDurationMs ?? 800,
+      prefixPaddingMs: serverVADConfig?.prefixPaddingMs ?? 333,
+      interruptResponse: serverVADConfig?.interruptResponse ?? true,
+    };
+  }
+
+  override sendSessionUpdate(updates: { instructions?: string }): void {
+    if (!this.session || !this.isConnected) {
+      console.warn('⚠️ [grok] Cannot update session: session not connected');
+      return;
+    }
+
+    if (!updates.instructions) {
+      console.warn('⚠️ [grok] Cannot update session: no instructions provided');
+      return;
+    }
+
+    const transport = (this.session as any).transport as
+      | { sendEvent?: (event: unknown) => void }
+      | undefined;
+
+    if (!transport?.sendEvent) {
+      console.warn('⚠️ [grok] Cannot update session: transport sendEvent unavailable');
+      return;
+    }
+
+    try {
+      // xAI rejects post-connect model changes, and the SDK's updateAgent() path
+      // resends a full session config that includes the current model.
+      transport.sendEvent({
+        type: 'session.update',
+        session: {
+          instructions: updates.instructions,
+        },
+      });
+
+      this.config = {
+        ...this.config,
+        systemInstructions: updates.instructions,
+      };
+
+      if (this.originalAgentConfig) {
+        this.originalAgentConfig.instructions = updates.instructions;
+      }
+
+      console.log(
+        `✅ [grok] Sent manual session.update with instructions only (${updates.instructions.length} chars)`
+      );
+    } catch (error) {
+      console.error('❌ [grok] Failed to send manual session.update:', error);
+    }
   }
 
   private setupEventListeners(): void {
@@ -356,26 +431,9 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
 
       this.agent = new RealtimeAgent(agentConfig);
 
-      const turnDetection = this.config.metadata?.turnDetection as any;
-      const turnDetectionMode = this.getResolvedTurnDetectionMode();
       const inputAudioFormat = this.getInputAudioFormat();
       const outputAudioFormat = this.getOutputAudioFormat();
-      let turnDetectionConfig: any;
-
-      if (turnDetectionMode === 'client_vad') {
-        turnDetectionConfig = { type: 'disabled' };
-      } else if (turnDetectionMode === 'disabled') {
-        turnDetectionConfig = { type: 'disabled' };
-      } else {
-        const serverVADConfig = turnDetection?.serverVAD;
-        turnDetectionConfig = {
-          type: 'server_vad',
-          threshold: serverVADConfig?.threshold ?? 0.5,
-          silenceDurationMs: serverVADConfig?.silenceDurationMs ?? 500,
-          prefixPaddingMs: serverVADConfig?.prefixPaddingMs ?? 300,
-          interruptResponse: serverVADConfig?.interruptResponse ?? true,
-        };
-      }
+      const turnDetectionConfig = this.buildTurnDetectionConfig();
 
       const transport = new GrokRealtimeWebSocketTransport({
         url: this.baseUrl,

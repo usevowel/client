@@ -714,7 +714,8 @@ export class AudioManager {
     // AudioWorklet runs on a separate thread, reducing main thread load
     // This is especially important for mobile/Safari performance
     // Pass the input sample rate so the worklet can resample to provider's target rate
-    const captureBufferSize = AUDIO_CAPTURE_CONFIG.bufferSize;
+    const captureBufferSize =
+      provider.getPreferredInputChunkSizeSamples() ?? AUDIO_CAPTURE_CONFIG.bufferSize;
     this.refs.workletNode = new AudioWorkletNode(
       inputContext,
       'vowel-audio-processor',

@@ -233,6 +233,22 @@ export abstract class RealtimeProvider {
   }
 
   /**
+   * Providers can override this to request a specific microphone capture chunk size.
+   * Returning `null` uses the shared default configured in `AUDIO_CAPTURE_CONFIG`.
+   */
+  getPreferredInputChunkSizeSamples(): number | null {
+    return null;
+  }
+
+  /**
+   * Providers can override this to control how large committed audio bursts are
+   * when client-side VAD flushes buffered microphone input.
+   */
+  getPreferredCommitChunkSizeBytes(): number | null {
+    return null;
+  }
+
+  /**
    * Get provider identifier
    */
   abstract getProviderId(): ProviderType;
