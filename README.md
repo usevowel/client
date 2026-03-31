@@ -4,6 +4,8 @@ Add a voice agent to your web app with hosted `appId` flows, backend-issued toke
 
 [![npm version](https://img.shields.io/npm/v/@vowel.to/client.svg)](https://www.npmjs.com/package/@vowel.to/client)
 
+> **⚠️ Beta Release** — This open-source release is in beta. You may encounter rough edges, incomplete features, or breaking changes. We are actively reviewing and merging community PRs, but please expect some instability as we iterate toward a stable release. Your feedback and contributions are welcome.
+
 ## What ships in this package
 
 - Realtime browser client for voice sessions
