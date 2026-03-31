@@ -8,6 +8,7 @@ export const SUPPORTED_REALTIME_PROVIDERS = [
   "gemini",
   "openai",
   "grok",
+  "vowel-core",
   "vowel-prime",
 ] as const;
 
@@ -19,4 +20,3 @@ export const OPENAI_COMPATIBLE_PROVIDERS = [
 ] as const;
 
 export type OpenAICompatibleProviderType = (typeof OPENAI_COMPATIBLE_PROVIDERS)[number];
-

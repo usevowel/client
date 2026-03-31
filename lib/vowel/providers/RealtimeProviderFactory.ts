@@ -13,6 +13,7 @@ import {
 import { GeminiRealtimeProvider } from "./GeminiRealtimeProvider";
 import { OpenAIRealtimeProvider } from "./OpenAIRealtimeProvider";
 import { GrokRealtimeProvider } from "./GrokRealtimeProvider";
+import { VowelCoreRealtimeProvider } from "./VowelCoreRealtimeProvider";
 import { VowelPrimeRealtimeProvider } from "./VowelPrimeRealtimeProvider";
 import {
   SUPPORTED_REALTIME_PROVIDERS,
@@ -25,7 +26,7 @@ import {
 export class RealtimeProviderFactory {
   /**
    * Create a realtime provider instance
-   * @param provider - Provider type ("gemini" | "openai" | "grok" | "vowel-prime")
+   * @param provider - Provider type ("gemini" | "openai" | "grok" | "vowel-core" | "vowel-prime")
    * @param config - Provider configuration
    * @param callbacks - Event callbacks
    * @returns Realtime provider instance
@@ -45,6 +46,8 @@ export class RealtimeProviderFactory {
         return new OpenAIRealtimeProvider(config, callbacks, "openai");
       case "grok":
         return new GrokRealtimeProvider(config, callbacks);
+      case "vowel-core":
+        return new VowelCoreRealtimeProvider(config, callbacks);
       case "vowel-prime":
         // Dedicated provider for Vowel Prime (Vowel Engine)
         // Uses WebSocket transport with manual audio streaming

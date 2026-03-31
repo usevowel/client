@@ -357,6 +357,7 @@ export class SessionManager {
         return 'gemini-2.0-flash-live-001';
       case 'openai':
         return 'gpt-4o-realtime-preview';
+      case 'vowel-core':
       case 'vowel-prime':
         return 'vowel-prime';
       default:

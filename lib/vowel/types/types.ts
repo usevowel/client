@@ -484,7 +484,7 @@ export type VowelTurnDetectionPreset = 'aggressive' | 'balanced' | 'conservative
 export interface VowelVoiceConfig {
   /** Ephemeral token for direct connections (bypasses token endpoint) */
   token?: string;
-  /** Provider to use ("gemini" | "openai" | "grok" | "vowel-prime") - determines which realtime voice API to use */
+  /** Provider to use ("gemini" | "openai" | "grok" | "vowel-core" | "vowel-prime") - determines which realtime voice API to use */
   provider?: ProviderType;
   /** Model to use (e.g., "gemini-live-2.5-flash-preview" or "gemini-2.0-flash-live-001" for Gemini, "gpt-realtime" or "gpt-4o-realtime-preview" for OpenAI) */
   model?: string;
@@ -510,7 +510,7 @@ export interface VowelVoiceConfig {
       mimeType?: string;
     };
   };
-  /** Speaking rate for TTS (1.0 = normal, 1.2 = 20% faster, 0.8 = 20% slower, default: 1.2) - for vowel-prime provider only */
+  /** Speaking rate for TTS (1.0 = normal, 1.2 = 20% faster, 0.8 = 20% slower, default: 1.2) - for vowel-core/vowel-prime providers only */
   speakingRate?: number;
   /** 
    * VAD type - "simple" uses energy-based detection (fast), "silero" uses ML model (accurate), "none" disables client-side VAD
@@ -527,9 +527,9 @@ export interface VowelVoiceConfig {
   turnDetection?: TurnDetectionConfig;
   /** Tool retry and step limiting configuration */
   toolRetry?: ToolRetryConfig;
-  /** Vowel Prime specific configuration (only used when provider is "vowel-prime") */
+  /** Vowel websocket-provider-specific configuration (used by "vowel-core" and "vowel-prime") */
   vowelPrimeConfig?: VowelPrimeConfig;
-  /** LLM provider for vowel-prime (e.g., "groq", "openrouter") - determines which LLM backend to use */
+  /** LLM provider for vowel websocket providers (e.g., "groq", "openrouter") - determines which LLM backend to use */
   llmProvider?: "groq" | "openrouter";
   /** OpenRouter-specific options (only used when llmProvider is "openrouter") */
   openrouterOptions?: {
