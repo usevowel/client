@@ -2,7 +2,7 @@
  * Realtime Provider Factory
  * 
  * Factory for creating realtime provider instances based on provider type
- * Supports Gemini, OpenAI, and Vowel Prime providers
+ * Supports Gemini, OpenAI, Grok, and the Vowel branded realtime modes.
  */
 
 import {
@@ -49,8 +49,7 @@ export class RealtimeProviderFactory {
       case "vowel-core":
         return new VowelCoreRealtimeProvider(config, callbacks);
       case "vowel-prime":
-        // Dedicated provider for Vowel Prime (Vowel Engine)
-        // Uses WebSocket transport with manual audio streaming
+        // Hosted Vowel Prime mode over the shared Vowel Engine realtime protocol.
         return new VowelPrimeRealtimeProvider(config, callbacks);
       default:
         throw new Error(

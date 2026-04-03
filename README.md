@@ -1,6 +1,6 @@
 # @vowel.to/client
 
-Add a voice agent to your web app with hosted `appId` flows, backend-issued tokens, router-aware navigation, and optional page automation.
+Add a voice agent to your web app with top-level `apiKey`/`appId` token-issuer identifiers, backend-issued tokens, router-aware navigation, and optional page automation.
 
 [![npm version](https://img.shields.io/npm/v/@vowel.to/client.svg)](https://www.npmjs.com/package/@vowel.to/client)
 
@@ -38,7 +38,7 @@ const { navigationAdapter, automationAdapter } = createNextJSAdapters(router, {
 });
 
 const vowel = new Vowel({
-  appId: 'your-app-id',
+  apiKey: 'vkey_public_xxx',
   navigationAdapter,
   automationAdapter,
   language: 'en-US',
@@ -73,13 +73,13 @@ Register actions before calling `startSession()`.
 
 ## Connection models
 
-### Hosted app flow
+### Token-issued flow
 
-Use `appId` when your app is configured in hosted vowel. Hosted apps should use the managed preset selected in the product UI. Keep supported public fields at the top level.
+Prefer `apiKey` at the top level. During the transition away from hosted `appId` auth, `apiKey` and `appId` are aliases and either field may contain either a publishable API key or a legacy appId.
 
 ```ts
 const vowel = new Vowel({
-  appId: 'your-app-id',
+  apiKey: 'vkey_public_xxx',
   language: 'en-US',
   initialGreetingPrompt: 'Welcome the user and ask how you can help.',
   turnDetectionPreset: 'balanced',
@@ -92,13 +92,16 @@ Use `tokenProvider` when your backend or self-hosted token service decides wheth
 
 ```ts
 const vowel = new Vowel({
-  appId: 'optional-app-id',
-  tokenProvider: async (config) => {
+  apiKey: 'vkey_public_xxx',
+  tokenProvider: async ({ apiKey, origin, config }) => {
     const response = await fetch('/api/vowel/token', {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
+      },
+      body: JSON.stringify({ origin, config }),
     });
 
     if (!response.ok) {
@@ -139,7 +142,7 @@ Use top-level fields for the public browser-facing config:
 
 ```ts
 const vowel = new Vowel({
-  appId: 'your-app-id',
+  apiKey: 'vkey_public_xxx',
   language: 'en-US',
   initialGreetingPrompt: 'Welcome the user and ask how you can help.',
   turnDetectionPreset: 'balanced',
@@ -151,7 +154,7 @@ Use `_voiceConfig` for backend/runtime overrides such as provider, model, voice,
 
 ```ts
 const vowel = new Vowel({
-  appId: 'your-app-id',
+  apiKey: 'vkey_public_xxx',
   language: 'en-US',
   initialGreetingPrompt: 'Welcome the user and ask how you can help.',
   turnDetectionPreset: 'balanced',

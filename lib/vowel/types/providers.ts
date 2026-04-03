@@ -3,6 +3,9 @@
  *
  * This is the single source of truth for realtime providers used across
  * types, validation, and provider factory selection.
+ *
+ * `vowel-prime` and `vowel-core` are client-facing product modes. They are
+ * not modeled here as different core realtime protocols.
  */
 export const SUPPORTED_REALTIME_PROVIDERS = [
   "gemini",

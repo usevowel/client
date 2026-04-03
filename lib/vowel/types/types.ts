@@ -568,8 +568,10 @@ export interface VowelVoiceConfig {
  * Complete Vowel configuration (backend format)
  */
 export interface VowelConfig {
-  /** App ID */
-  appId: string;
+  /** Preferred token issuer identifier. Accepts either a publishable API key or a legacy appId. */
+  apiKey?: string;
+  /** Legacy alias for the top-level token issuer identifier. Accepts either a publishable API key or a legacy appId. */
+  appId?: string;
   /** Available routes for navigation */
   routes: VowelRoute[];
   /** Custom actions the AI can perform */
@@ -672,7 +674,10 @@ export interface FloatingCursorUpdate {
  * Vowel client configuration
  */
 export interface VowelClientConfig {
-  /** App ID for this tenant (string format from Vowel platform) */
+  /** Preferred token issuer identifier. Accepts either a publishable API key or a legacy appId. */
+  apiKey?: string;
+
+  /** Legacy alias for the top-level token issuer identifier. Accepts either a publishable API key or a legacy appId. */
   appId?: string;
 
   /** 
@@ -683,7 +688,7 @@ export interface VowelClientConfig {
    * @example
    * ```ts
    * const vowel = new Vowel({
-   *   appId: 'demo-app',
+   *   apiKey: 'vkey_public_xxx',
    *   convexUrl: 'https://my-deployment.convex.site'
    * });
    * ```
@@ -699,7 +704,7 @@ export interface VowelClientConfig {
    * @example
    * ```ts
    * const vowel = new Vowel({
-   *   appId: 'demo-app',
+   *   apiKey: 'vkey_public_xxx',
    *   tokenEndpoint: 'https://my-server.com/api/token'
    * });
    * ```
@@ -724,19 +729,26 @@ export interface VowelClientConfig {
    * @example
    * ```ts
    * const vowel = new Vowel({
-   *   appId: 'demo-app',
-   *   tokenProvider: async (config) => {
+   *   apiKey: 'vkey_public_xxx',
+   *   tokenProvider: async ({ apiKey, origin, config }) => {
    *     // Custom token generation logic
    *     const response = await fetch('/my-custom-endpoint', {
    *       method: 'POST',
-   *       body: JSON.stringify(config)
+   *       headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+   *       body: JSON.stringify({ origin, config })
    *     });
    *     return await response.json();
    *   }
    * });
    * ```
    */
-   tokenProvider?: (config: any) => Promise<{
+   tokenProvider?: (request: {
+     appId?: string;
+     apiKey?: string;
+     identifier?: string;
+     origin: string;
+     config: any;
+   }) => Promise<{
      tokenName: string;
      model: string;
      provider: ProviderType;

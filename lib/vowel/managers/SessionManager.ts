@@ -33,6 +33,7 @@ import { RealtimeProviderFactory } from "../providers/RealtimeProviderFactory";
 import type { RealtimeProvider } from "../providers/RealtimeProvider";
 import { RealtimeMessageType } from "../providers/RealtimeProvider";
 import type { ProviderType } from "../types/providers";
+import { resolveConnectionIdentity } from "../utils/connectionIdentity";
 
 /**
  * Enable server VAD events to update UI state (button speaking indicator)
@@ -76,8 +77,10 @@ interface TokenResponse {
  * Session configuration options
  */
 export interface SessionConfig {
-  /** App ID (optional if using direct token via _voiceConfig.token) */
+  /** Legacy alias for the top-level token issuer identifier. */
   appId?: string;
+  /** Preferred top-level token issuer identifier. */
+  apiKey?: string;
   /** Available routes */
   routes: VowelRoute[];
   /** Tool manager for executing tools */
@@ -113,7 +116,13 @@ export interface SessionConfig {
   /** Custom token endpoint URL */
   tokenEndpoint?: string;
   /** Custom token provider function */
-  tokenProvider?: (config: any) => Promise<{
+  tokenProvider?: (request: {
+    appId?: string;
+    apiKey?: string;
+    identifier?: string;
+    origin: string;
+    config: any;
+  }) => Promise<{
     tokenName: string;
     model: string;
     provider: ProviderType;
@@ -296,7 +305,8 @@ export class SessionManager {
    * @returns Token response
    */
   private async fetchToken(params: {
-    appId: string;
+    appId?: string;
+    apiKey?: string;
     origin: string;
     config: any;
   }, endpoint?: string): Promise<TokenResponse> {
@@ -311,14 +321,27 @@ export class SessionManager {
       tokenEndpoint = VOWEL_TOKEN_ENDPOINT;
     }
     console.log("🔐 Fetching token from HTTP endpoint:", tokenEndpoint);
+    const resolvedIdentity = resolveConnectionIdentity({
+      appId: params.appId,
+      apiKey: params.apiKey,
+    });
+    const requestBody = {
+      ...(resolvedIdentity.appId ? { appId: resolvedIdentity.appId } : {}),
+      ...(resolvedIdentity.apiKey ? { apiKey: resolvedIdentity.apiKey } : {}),
+      origin: params.origin,
+      config: params.config,
+    };
     
     try {
       const response = await fetch(tokenEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(resolvedIdentity.useAuthorizationHeader && resolvedIdentity.identifier
+            ? { Authorization: `Bearer ${resolvedIdentity.identifier}` }
+            : {}),
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -1317,7 +1340,17 @@ export class SessionManager {
       else if (this.config.tokenProvider) {
         console.log("🔧 Using custom token provider...");
         this.initTimings.tokenRequestStart = Date.now();
-        tokenResponse = await this.config.tokenProvider(clientConfig);
+        const resolvedIdentity = resolveConnectionIdentity({
+          appId: this.config.appId,
+          apiKey: this.config.apiKey,
+        });
+        tokenResponse = await this.config.tokenProvider({
+          appId: resolvedIdentity.appId,
+          apiKey: resolvedIdentity.apiKey,
+          identifier: resolvedIdentity.identifier,
+          origin,
+          config: clientConfig,
+        });
         this.initTimings.tokenRequestEnd = Date.now();
       } else {
         // Get token from HTTP endpoint (custom or default)
@@ -1345,7 +1378,8 @@ export class SessionManager {
 
         this.initTimings.tokenRequestStart = Date.now();
         tokenResponse = await this.fetchToken({
-          appId: this.config.appId || '',
+          appId: this.config.appId,
+          apiKey: this.config.apiKey,
           origin,
           config: clientConfig,
         }, tokenEndpoint);
