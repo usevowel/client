@@ -4,7 +4,7 @@
  * Stories for the floating cursor component that shows AI actions
  */
 
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@storybook/react';
 import { FloatingCursorComponent } from '../FloatingCursorComponent';
 import { FloatingCursorProvider } from '../FloatingCursorProvider';
 import { useState } from 'react';
@@ -45,10 +45,10 @@ const meta: Meta<typeof FloatingCursorComponent> = {
     },
   },
   decorators: [
-    (Story) => (
-      <div style={{ 
-        minHeight: '600px', 
-        minWidth: '800px', 
+    (Story: React.FC) => (
+      <div style={{
+        minHeight: '600px',
+        minWidth: '800px',
         position: 'relative',
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         padding: '20px',

@@ -4,7 +4,7 @@
  * Comprehensive stories showing all states of the embedded microphone button
  */
 
-import type { Meta, StoryObj } from '@storybook/react-vite';
+import type { Meta, StoryObj } from '@storybook/react';
 import { VowelMicrophone } from '../VowelMicrophone';
 import { VowelProvider } from '../VowelProviderSimple';
 import { Vowel } from '../../core';
@@ -38,13 +38,13 @@ const meta: Meta<typeof VowelMicrophone> = {
     },
   },
   decorators: [
-    (Story) => {
+    (Story: React.FC) => {
       const mockClient = createMockClient();
       return (
         <VowelProvider client={mockClient}>
-          <div style={{ 
-            padding: '2rem', 
-            display: 'flex', 
+          <div style={{
+            padding: '2rem',
+            display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             gap: '1rem',

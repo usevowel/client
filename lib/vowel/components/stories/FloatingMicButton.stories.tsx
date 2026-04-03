@@ -4,8 +4,8 @@
  * Comprehensive stories showing all states of the floating microphone button
  */
 
-import type { Meta, StoryObj } from '@storybook/react-vite';
-import { action } from 'storybook/actions';
+import type { Meta, StoryObj } from '@storybook/react';
+import { action } from '@storybook/addon-actions';
 import { FloatingMicButton } from '../FloatingMicButton';
 
 const meta: Meta<typeof FloatingMicButton> = {
@@ -315,7 +315,7 @@ export const PositionedBottomRight: Story = {
     layout: 'fullscreen',
   },
   decorators: [
-    (Story) => {
+    (Story: React.FC) => {
       // Disable floating cursor globally for these stories
       if (typeof window !== 'undefined') {
         (window as any).__vowelFloatingCursorContext = null;
@@ -328,7 +328,7 @@ export const PositionedBottomRight: Story = {
           (window as any).__vowelFloatingCursorManager = null;
         }
       }
-      
+
       return (
         <>
           <style>{`
@@ -340,15 +340,15 @@ export const PositionedBottomRight: Story = {
               opacity: 0 !important;
             }
           `}</style>
-          <div style={{ 
-            minHeight: '600px', 
-            minWidth: '800px', 
-            position: 'relative', 
-            padding: '20px' 
+          <div style={{
+            minHeight: '600px',
+            minWidth: '800px',
+            position: 'relative',
+            padding: '20px'
           }}>
-            <div style={{ 
-              textAlign: 'center', 
-              color: '#94a3b8', 
+            <div style={{
+              textAlign: 'center',
+              color: '#94a3b8',
               marginBottom: '20px',
               fontSize: '14px'
             }}>
@@ -384,7 +384,7 @@ export const PositionedBottomLeft: Story = {
     layout: 'fullscreen',
   },
   decorators: [
-    (Story) => {
+    (Story: React.FC) => {
       // Disable floating cursor globally for these stories
       if (typeof window !== 'undefined') {
         (window as any).__vowelFloatingCursorContext = null;
@@ -397,17 +397,17 @@ export const PositionedBottomLeft: Story = {
           (window as any).__vowelFloatingCursorManager = null;
         }
       }
-      
+
       return (
-        <div style={{ 
-          minHeight: '600px', 
-          minWidth: '800px', 
-          position: 'relative', 
-          padding: '20px' 
+        <div style={{
+          minHeight: '600px',
+          minWidth: '800px',
+          position: 'relative',
+          padding: '20px'
         }}>
-          <div style={{ 
-            textAlign: 'center', 
-            color: '#94a3b8', 
+          <div style={{
+            textAlign: 'center',
+            color: '#94a3b8',
             marginBottom: '20px',
             fontSize: '14px'
           }}>
@@ -442,7 +442,7 @@ export const PositionedTopRight: Story = {
     layout: 'fullscreen',
   },
   decorators: [
-    (Story) => {
+    (Story: React.FC) => {
       // Disable floating cursor globally for these stories
       if (typeof window !== 'undefined') {
         (window as any).__vowelFloatingCursorContext = null;
@@ -455,17 +455,17 @@ export const PositionedTopRight: Story = {
           (window as any).__vowelFloatingCursorManager = null;
         }
       }
-      
+
       return (
-        <div style={{ 
-          minHeight: '600px', 
-          minWidth: '800px', 
-          position: 'relative', 
-          padding: '20px' 
+        <div style={{
+          minHeight: '600px',
+          minWidth: '800px',
+          position: 'relative',
+          padding: '20px'
         }}>
-          <div style={{ 
-            textAlign: 'center', 
-            color: '#94a3b8', 
+          <div style={{
+            textAlign: 'center',
+            color: '#94a3b8',
             marginBottom: '20px',
             fontSize: '14px'
           }}>
@@ -500,7 +500,7 @@ export const PositionedTopLeft: Story = {
     layout: 'fullscreen',
   },
   decorators: [
-    (Story) => {
+    (Story: React.FC) => {
       // Disable floating cursor globally for these stories
       if (typeof window !== 'undefined') {
         (window as any).__vowelFloatingCursorContext = null;
@@ -513,17 +513,17 @@ export const PositionedTopLeft: Story = {
           (window as any).__vowelFloatingCursorManager = null;
         }
       }
-      
+
       return (
-        <div style={{ 
-          minHeight: '600px', 
-          minWidth: '800px', 
-          position: 'relative', 
-          padding: '20px' 
+        <div style={{
+          minHeight: '600px',
+          minWidth: '800px',
+          position: 'relative',
+          padding: '20px'
         }}>
-          <div style={{ 
-            textAlign: 'center', 
-            color: '#94a3b8', 
+          <div style={{
+            textAlign: 'center',
+            color: '#94a3b8',
             marginBottom: '20px',
             fontSize: '14px'
           }}>
