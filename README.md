@@ -254,11 +254,13 @@ Use the `config` attribute for JSON configuration overrides when embedding the w
 
 ## Docs
 
-- `client/docs/guides/QUICK_REFERENCE.md`
-- `client/docs/guides/PAUSE_RESUME_AND_STATE_RESTORATION.md`
-- `docs/recipes/connection-paradigms.md`
-- `demos/demo/src/vowel.client.ts`
-- `demos/demo-next/src/lib/vowel.client.ts`
+Documentation is now hosted at [docs.vowel.to](https://docs.vowel.to):
+
+- [Client Quick Reference](https://docs.vowel.to/client/quick-reference)
+- [Pause, Resume & State Restoration](https://docs.vowel.to/client/pause-resume-and-state-restoration)
+- [Connection Paradigms](https://docs.vowel.to/recipes/connection-paradigms)
+- [Demo Example (React)](https://github.com/usevowel/vowel/blob/main/demos/demo/src/vowel.client.ts)
+- [Demo Example (Next.js)](https://github.com/usevowel/vowel/blob/main/demos/demo-next/src/lib/vowel.client.ts)
 
 ## Requirements
 
