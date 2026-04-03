@@ -9,6 +9,7 @@
 
 // Core Client
 export { Vowel } from "./core";
+export type { ActionNotification, ActionType } from "./core/action-notifier";
 
 // React Components & Hooks
 export {
@@ -49,6 +50,8 @@ export type {
   VowelTranscript,
   VowelLiveState,
 } from "./types";
+
+export type { VoiceSessionState } from "./managers";
 
 export {
   DEFAULT_VOICE_CONFIG,

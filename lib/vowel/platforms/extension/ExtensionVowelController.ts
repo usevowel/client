@@ -26,7 +26,7 @@ import { ExtensionAutomationAdapter } from './adapters/ExtensionAutomationAdapte
  * @example
  * ```typescript
  * const controller = new ExtensionVowelController({
- *   appId: 'your-app-id',
+ *   apiKey: 'vkey_public_xxx',
  *   systemInstruction: 'Custom instructions...',
  * });
  * 
@@ -254,4 +254,3 @@ export class ExtensionVowelController {
     console.log('✅ Lifecycle handlers set up');
   }
 }
-

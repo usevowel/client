@@ -151,7 +151,7 @@ See `docs/INTERRUPT_AND_TIMEOUT_HANDLING.md` for detailed documentation and `doc
 // To restore previous Silero behavior
 const vowel = new Vowel({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     vadType: 'silero'  // Explicitly use Silero
   }
 });
@@ -164,7 +164,7 @@ const vowel = new Vowel({
 Added support for multiple VAD types to provide flexibility between accuracy and load time.
 
 **New Configuration Option:**
-- `voiceConfig.vadType` - Choose VAD implementation type:
+- `_voiceConfig.vadType` - Choose VAD implementation type:
   - `'simple'` (default) - Energy-based VAD algorithm (instant load, good accuracy)
   - `'silero'` - ML-based VAD using Silero model (highest accuracy, 5-10s load time)
   - `'none'` - Disable client-side VAD (rely on server-side detection only)
@@ -189,7 +189,7 @@ Added support for multiple VAD types to provide flexibility between accuracy and
 ```typescript
 const vowel = new Vowel({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     vadType: 'simple'  // Use fast energy-based VAD
   }
 });
@@ -368,4 +368,3 @@ if (state.isConnected) {
 - Custom action registration
 - Voice configuration options
 - Multi-format distribution (ESM, CJS, UMD)
-

@@ -33,6 +33,7 @@ import { RealtimeProviderFactory } from "../providers/RealtimeProviderFactory";
 import type { RealtimeProvider } from "../providers/RealtimeProvider";
 import { RealtimeMessageType } from "../providers/RealtimeProvider";
 import type { ProviderType } from "../types/providers";
+import { resolveConnectionIdentity } from "../utils/connectionIdentity";
 
 /**
  * Enable server VAD events to update UI state (button speaking indicator)
@@ -76,16 +77,20 @@ interface TokenResponse {
  * Session configuration options
  */
 export interface SessionConfig {
-  /** App ID (optional if using direct token via voiceConfig.token) */
+  /** Legacy alias for the top-level token issuer identifier. */
   appId?: string;
+  /** Preferred top-level token issuer identifier. */
+  apiKey?: string;
   /** Available routes */
   routes: VowelRoute[];
   /** Tool manager for executing tools */
   toolManager: ToolManager;
   /** Audio manager for audio handling */
   audioManager: AudioManager;
-  /** Voice configuration */
+  /** @deprecated Prefer `_voiceConfig`. */
   voiceConfig?: VowelVoiceConfig;
+  /** Hidden runtime configuration bag for provider-specific overrides. */
+  _voiceConfig?: VowelVoiceConfig;
   language?: string;
   initialGreetingPrompt?: string;
   turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
@@ -111,7 +116,13 @@ export interface SessionConfig {
   /** Custom token endpoint URL */
   tokenEndpoint?: string;
   /** Custom token provider function */
-  tokenProvider?: (config: any) => Promise<{
+  tokenProvider?: (request: {
+    appId?: string;
+    apiKey?: string;
+    identifier?: string;
+    origin: string;
+    config: any;
+  }) => Promise<{
     tokenName: string;
     model: string;
     provider: ProviderType;
@@ -195,11 +206,18 @@ export class SessionManager {
   private isInitializingSession: boolean = false;
   private providerLifecycleId: number = 0;
 
+  private getHiddenVoiceConfig(): VowelVoiceConfig | undefined {
+    return this.config._voiceConfig ?? this.config.voiceConfig;
+  }
+
   constructor(config: SessionConfig) {
-    this.config = config;
+    this.config = {
+      ...config,
+      _voiceConfig: config._voiceConfig ?? config.voiceConfig,
+    };
     
     // Initialize step limiting configuration from voice config
-    const retryConfig = config.voiceConfig?.toolRetry;
+    const retryConfig = this.getHiddenVoiceConfig()?.toolRetry;
     if (retryConfig) {
       this.maxSteps = retryConfig.maxSteps ?? 30;
       this.maxToolFailures = retryConfig.maxRetries ?? 3;
@@ -287,7 +305,8 @@ export class SessionManager {
    * @returns Token response
    */
   private async fetchToken(params: {
-    appId: string;
+    appId?: string;
+    apiKey?: string;
     origin: string;
     config: any;
   }, endpoint?: string): Promise<TokenResponse> {
@@ -302,14 +321,27 @@ export class SessionManager {
       tokenEndpoint = VOWEL_TOKEN_ENDPOINT;
     }
     console.log("🔐 Fetching token from HTTP endpoint:", tokenEndpoint);
+    const resolvedIdentity = resolveConnectionIdentity({
+      appId: params.appId,
+      apiKey: params.apiKey,
+    });
+    const requestBody = {
+      ...(resolvedIdentity.appId ? { appId: resolvedIdentity.appId } : {}),
+      ...(resolvedIdentity.apiKey ? { apiKey: resolvedIdentity.apiKey } : {}),
+      origin: params.origin,
+      config: params.config,
+    };
     
     try {
       const response = await fetch(tokenEndpoint, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(resolvedIdentity.useAuthorizationHeader && resolvedIdentity.identifier
+            ? { Authorization: `Bearer ${resolvedIdentity.identifier}` }
+            : {}),
         },
-        body: JSON.stringify(params),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -348,6 +380,7 @@ export class SessionManager {
         return 'gemini-2.0-flash-live-001';
       case 'openai':
         return 'gpt-4o-realtime-preview';
+      case 'vowel-core':
       case 'vowel-prime':
         return 'vowel-prime';
       default:
@@ -363,7 +396,7 @@ export class SessionManager {
   }
 
   private getClientIdleHibernateTimeoutMs(): number | null {
-    const timeoutMs = this.config.voiceConfig?.clientIdleHibernateTimeoutMs;
+    const timeoutMs = this.getHiddenVoiceConfig()?.clientIdleHibernateTimeoutMs;
     return typeof timeoutMs === "number" && timeoutMs > 0 ? timeoutMs : null;
   }
 
@@ -488,7 +521,7 @@ export class SessionManager {
   private scheduleHostedInitialGreeting(provider: ProviderType): void {
     const initialGreetingPrompt =
       this.config.initialGreetingPrompt?.trim() ??
-      this.config.voiceConfig?.initialGreetingPrompt?.trim();
+      this.getHiddenVoiceConfig()?.initialGreetingPrompt?.trim();
     if (!initialGreetingPrompt || !HOSTED_INITIAL_GREETING_PROVIDERS.has(provider)) {
       return;
     }
@@ -707,7 +740,7 @@ export class SessionManager {
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED:
           // Server-side VAD detected user started speaking
           this.setServerSpeechActive(true, "started");
-          if (this.config.voiceConfig?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
+          if (this.getHiddenVoiceConfig()?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🗣️ [SessionManager] User started speaking (server VAD)");
             this.config.onUserSpeakingChange?.(true);
           }
@@ -716,7 +749,7 @@ export class SessionManager {
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED:
           // Server-side VAD detected user stopped speaking
           this.setServerSpeechActive(false, "stopped");
-          if (this.config.voiceConfig?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
+          if (this.getHiddenVoiceConfig()?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🔇 [SessionManager] User stopped speaking (server VAD)");
             this.config.onUserSpeakingChange?.(false);
           }
@@ -1249,20 +1282,20 @@ export class SessionManager {
       
       // Resolve turnDetection config with defaults
       const defaultTurnDetectionMode =
-        this.config.voiceConfig?.provider === 'grok' ? 'server_vad' : 'client_vad';
+        this.getHiddenVoiceConfig()?.provider === 'grok' ? 'server_vad' : 'client_vad';
       const turnDetectionMode =
-        this.config.voiceConfig?.turnDetection?.mode ?? defaultTurnDetectionMode;
+        this.getHiddenVoiceConfig()?.turnDetection?.mode ?? defaultTurnDetectionMode;
       const resolvedTurnDetection = {
         mode: turnDetectionMode,
         ...(turnDetectionMode === 'client_vad' && {
-          clientVAD: this.config.voiceConfig?.turnDetection?.clientVAD ?? {
+          clientVAD: this.getHiddenVoiceConfig()?.turnDetection?.clientVAD ?? {
             adapter: 'silero-vad',
             autoCommit: true,
             autoCreateResponse: true,
           }
         }),
-        ...(this.config.voiceConfig?.turnDetection?.serverVAD && {
-          serverVAD: this.config.voiceConfig.turnDetection.serverVAD
+        ...(this.getHiddenVoiceConfig()?.turnDetection?.serverVAD && {
+          serverVAD: this.getHiddenVoiceConfig()?.turnDetection?.serverVAD
         })
       };
       
@@ -1274,11 +1307,7 @@ export class SessionManager {
         initialGreetingPrompt: this.config.initialGreetingPrompt,
         turnDetectionPreset: this.config.turnDetectionPreset,
         _voiceConfig: {
-          ...this.config.voiceConfig,
-          turnDetection: resolvedTurnDetection,
-        },
-        voiceConfig: {
-          ...this.config.voiceConfig,
+          ...this.getHiddenVoiceConfig(),
           turnDetection: resolvedTurnDetection,
         },
         systemInstructionOverride: instructions, // Server expects this property name (now includes initial context)
@@ -1286,14 +1315,18 @@ export class SessionManager {
 
       let tokenResponse: TokenResponse;
 
-      // Check for direct token in voiceConfig (bypasses token endpoint)
-      if (this.config.voiceConfig?.token) {
+      // Check for direct token in _voiceConfig (bypasses token endpoint)
+      if (this.getHiddenVoiceConfig()?.token) {
+        const hiddenVoiceConfig = this.getHiddenVoiceConfig();
         console.log("🔑 Using direct token from _voiceConfig (bypassing token endpoint)");
-        const directToken = this.config.voiceConfig.token;
+        const directToken = hiddenVoiceConfig?.token;
+        if (!directToken) {
+          throw new Error("Hidden voice config token was expected but missing");
+        }
         
         // For direct tokens, we need to determine provider and model from config
-        const provider = this.config.voiceConfig?.provider || 'vowel-prime';
-        const model = this.config.voiceConfig?.model || this.getDefaultModelForProvider(provider);
+        const provider = hiddenVoiceConfig?.provider || 'vowel-prime';
+        const model = hiddenVoiceConfig?.model || this.getDefaultModelForProvider(provider);
         
         tokenResponse = {
           tokenName: directToken,
@@ -1307,7 +1340,17 @@ export class SessionManager {
       else if (this.config.tokenProvider) {
         console.log("🔧 Using custom token provider...");
         this.initTimings.tokenRequestStart = Date.now();
-        tokenResponse = await this.config.tokenProvider(clientConfig);
+        const resolvedIdentity = resolveConnectionIdentity({
+          appId: this.config.appId,
+          apiKey: this.config.apiKey,
+        });
+        tokenResponse = await this.config.tokenProvider({
+          appId: resolvedIdentity.appId,
+          apiKey: resolvedIdentity.apiKey,
+          identifier: resolvedIdentity.identifier,
+          origin,
+          config: clientConfig,
+        });
         this.initTimings.tokenRequestEnd = Date.now();
       } else {
         // Get token from HTTP endpoint (custom or default)
@@ -1330,12 +1373,13 @@ export class SessionManager {
           "  Actions:",
           Object.keys(this.config.toolManager.getToolDefinitions()).length
         );
-        console.log("  Voice config:", this.config.voiceConfig);
+        console.log("  Hidden voice config:", this.getHiddenVoiceConfig());
         console.log("  Turn detection (resolved):", resolvedTurnDetection);
 
         this.initTimings.tokenRequestStart = Date.now();
         tokenResponse = await this.fetchToken({
-          appId: this.config.appId || '',
+          appId: this.config.appId,
+          apiKey: this.config.apiKey,
           origin,
           config: clientConfig,
         }, tokenEndpoint);
@@ -1400,12 +1444,12 @@ export class SessionManager {
       // will detect it and not duplicate it
       const finalInstructions = this.buildInstructionsWithContext();
       
-      // Merge metadata with voiceConfig info for provider
+      // Merge provider metadata with hidden runtime config
       const providerMetadata = {
         ...tokenResponse.metadata,
-        vowelPrimeConfig: this.config.voiceConfig?.vowelPrimeConfig,
-        turnDetection: this.config.voiceConfig?.turnDetection, // Pass turnDetection config to provider
-        audioConfig: this.config.voiceConfig?.audioConfig,
+        vowelPrimeConfig: this.getHiddenVoiceConfig()?.vowelPrimeConfig,
+        turnDetection: this.getHiddenVoiceConfig()?.turnDetection, // Pass turnDetection config to provider
+        audioConfig: this.getHiddenVoiceConfig()?.audioConfig,
       };
       const providerLifecycleId = ++this.providerLifecycleId;
 
@@ -1414,8 +1458,8 @@ export class SessionManager {
         {
           token: tokenResponse.tokenName,
           model: tokenResponse.model,
-          voice: this.config.voiceConfig?.voice,
-          audioConfig: this.config.voiceConfig?.audioConfig,
+          voice: this.getHiddenVoiceConfig()?.voice,
+          audioConfig: this.getHiddenVoiceConfig()?.audioConfig,
           metadata: providerMetadata,
           systemInstructions: finalInstructions, // Use instructions with context appended
           tools: toolsWithNames,
@@ -1497,15 +1541,15 @@ export class SessionManager {
             
             // Check turnDetection config to determine which VAD system to use
             const defaultTurnDetectionMode =
-              this.config.voiceConfig?.provider === 'grok' ? 'server_vad' : 'client_vad';
+              this.getHiddenVoiceConfig()?.provider === 'grok' ? 'server_vad' : 'client_vad';
             const turnDetectionMode =
-              this.config.voiceConfig?.turnDetection?.mode ?? defaultTurnDetectionMode;
+              this.getHiddenVoiceConfig()?.turnDetection?.mode ?? defaultTurnDetectionMode;
             
             if (turnDetectionMode === 'client_vad') {
               // Use EnhancedVADManager for client_vad mode
               console.log("🎤 Initializing EnhancedVADManager for client_vad mode...");
               // Use provided clientVAD config or default to silero-vad adapter
-              const clientVADConfig = this.config.voiceConfig?.turnDetection?.clientVAD ?? {
+              const clientVADConfig = this.getHiddenVoiceConfig()?.turnDetection?.clientVAD ?? {
                 adapter: 'silero-vad',
                 autoCommit: true,
                 autoCreateResponse: true,
@@ -1613,7 +1657,7 @@ export class SessionManager {
                 });
             } else {
               // Server-side VAD mode (server_vad, semantic_vad, disabled) - fallback for non-client_vad modes
-              const vadType = this.config.voiceConfig?.vadType;
+              const vadType = this.getHiddenVoiceConfig()?.vadType;
               
               // Check if we should enable simple VAD for UI-only updates in server_vad mode
               const shouldUseSimpleVADForUI = (turnDetectionMode === 'server_vad' || turnDetectionMode === 'semantic_vad') && ENABLE_SERVER_VAD_UI_UPDATES;

@@ -416,10 +416,12 @@ export interface TurnDetectionConfig {
  * 
  * @example
  * ```typescript
- * const voiceConfig = {
- *   toolRetry: {
- *     maxRetries: 3,       // Max failures per tool before warning
- *     maxSteps: 30         // Max total tool calls per session
+ * const config = {
+ *   _voiceConfig: {
+ *     toolRetry: {
+ *       maxRetries: 3,       // Max failures per tool before warning
+ *       maxSteps: 30         // Max total tool calls per session
+ *     }
  *   }
  * };
  * ```
@@ -482,7 +484,7 @@ export type VowelTurnDetectionPreset = 'aggressive' | 'balanced' | 'conservative
 export interface VowelVoiceConfig {
   /** Ephemeral token for direct connections (bypasses token endpoint) */
   token?: string;
-  /** Provider to use ("gemini" | "openai" | "grok" | "vowel-prime") - determines which realtime voice API to use */
+  /** Provider to use ("gemini" | "openai" | "grok" | "vowel-core" | "vowel-prime") - determines which realtime voice API to use */
   provider?: ProviderType;
   /** Model to use (e.g., "gemini-live-2.5-flash-preview" or "gemini-2.0-flash-live-001" for Gemini, "gpt-realtime" or "gpt-4o-realtime-preview" for OpenAI) */
   model?: string;
@@ -508,7 +510,7 @@ export interface VowelVoiceConfig {
       mimeType?: string;
     };
   };
-  /** Speaking rate for TTS (1.0 = normal, 1.2 = 20% faster, 0.8 = 20% slower, default: 1.2) - for vowel-prime provider only */
+  /** Speaking rate for TTS (1.0 = normal, 1.2 = 20% faster, 0.8 = 20% slower, default: 1.2) - for vowel-core/vowel-prime providers only */
   speakingRate?: number;
   /** 
    * VAD type - "simple" uses energy-based detection (fast), "silero" uses ML model (accurate), "none" disables client-side VAD
@@ -525,9 +527,9 @@ export interface VowelVoiceConfig {
   turnDetection?: TurnDetectionConfig;
   /** Tool retry and step limiting configuration */
   toolRetry?: ToolRetryConfig;
-  /** Vowel Prime specific configuration (only used when provider is "vowel-prime") */
+  /** Vowel websocket-provider-specific configuration (used by "vowel-core" and "vowel-prime") */
   vowelPrimeConfig?: VowelPrimeConfig;
-  /** LLM provider for vowel-prime (e.g., "groq", "openrouter") - determines which LLM backend to use */
+  /** LLM provider for vowel websocket providers (e.g., "groq", "openrouter") - determines which LLM backend to use */
   llmProvider?: "groq" | "openrouter";
   /** OpenRouter-specific options (only used when llmProvider is "openrouter") */
   openrouterOptions?: {
@@ -566,8 +568,10 @@ export interface VowelVoiceConfig {
  * Complete Vowel configuration (backend format)
  */
 export interface VowelConfig {
-  /** App ID */
-  appId: string;
+  /** Preferred token issuer identifier. Accepts either a publishable API key or a legacy appId. */
+  apiKey?: string;
+  /** Legacy alias for the top-level token issuer identifier. Accepts either a publishable API key or a legacy appId. */
+  appId?: string;
   /** Available routes for navigation */
   routes: VowelRoute[];
   /** Custom actions the AI can perform */
@@ -670,7 +674,10 @@ export interface FloatingCursorUpdate {
  * Vowel client configuration
  */
 export interface VowelClientConfig {
-  /** App ID for this tenant (string format from Vowel platform) */
+  /** Preferred token issuer identifier. Accepts either a publishable API key or a legacy appId. */
+  apiKey?: string;
+
+  /** Legacy alias for the top-level token issuer identifier. Accepts either a publishable API key or a legacy appId. */
   appId?: string;
 
   /** 
@@ -681,7 +688,7 @@ export interface VowelClientConfig {
    * @example
    * ```ts
    * const vowel = new Vowel({
-   *   appId: 'demo-app',
+   *   apiKey: 'vkey_public_xxx',
    *   convexUrl: 'https://my-deployment.convex.site'
    * });
    * ```
@@ -697,7 +704,7 @@ export interface VowelClientConfig {
    * @example
    * ```ts
    * const vowel = new Vowel({
-   *   appId: 'demo-app',
+   *   apiKey: 'vkey_public_xxx',
    *   tokenEndpoint: 'https://my-server.com/api/token'
    * });
    * ```
@@ -722,19 +729,26 @@ export interface VowelClientConfig {
    * @example
    * ```ts
    * const vowel = new Vowel({
-   *   appId: 'demo-app',
-   *   tokenProvider: async (config) => {
+   *   apiKey: 'vkey_public_xxx',
+   *   tokenProvider: async ({ apiKey, origin, config }) => {
    *     // Custom token generation logic
    *     const response = await fetch('/my-custom-endpoint', {
    *       method: 'POST',
-   *       body: JSON.stringify(config)
+   *       headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : undefined,
+   *       body: JSON.stringify({ origin, config })
    *     });
    *     return await response.json();
    *   }
    * });
    * ```
    */
-   tokenProvider?: (config: any) => Promise<{
+   tokenProvider?: (request: {
+     appId?: string;
+     apiKey?: string;
+     identifier?: string;
+     origin: string;
+     config: any;
+   }) => Promise<{
      tokenName: string;
      model: string;
      provider: ProviderType;
