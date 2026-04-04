@@ -1,8 +1,10 @@
-import type { Preview } from '@storybook/react-vite';
+import { definePreview } from '@storybook/react-vite';
+import addonPerformancePanel from '@github-ui/storybook-addon-performance-panel';
 import React from 'react';
 import '../lib/vowel/styles/styles.css';
 
-const preview: Preview = {
+const preview = definePreview({
+  addons: [addonPerformancePanel()],
   parameters: {
     backgrounds: {
       options: {
@@ -39,6 +41,6 @@ const preview: Preview = {
       value: 'dark'
     }
   }
-};
+});
 
 export default preview;
