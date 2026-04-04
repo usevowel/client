@@ -655,7 +655,7 @@ Observer pattern for decoupling AI responses from application logic.
 
 **Related Codemaps:**
 - `platform/CODEMAP.md` - Admin dashboard structure
-- `engines/sndbrd/CODEMAP.md` - Voice engine structure
+- `engine/CODEMAP.md` - Voice engine structure
 
 **External Resources:**
 - [Google Gemini Live API](https://ai.google.dev/gemini-api/docs/live)
@@ -668,5 +668,4 @@ Observer pattern for decoupling AI responses from application logic.
 **Maintained By:** vowel Development Team
 
 This codemap documents the client library architecture and integration patterns. For overall monorepo information, see the root `CODEMAP.md`.
-
 

@@ -169,7 +169,7 @@ Server-side VAD (Voice Activity Detection) uses the server's speech detection ev
 ```typescript
 const vowel = createVowel({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     provider: 'vowel-prime', // Server VAD works with vowel-prime
     vadType: 'none', // Disable client-side VAD
     useServerVad: true, // Enable server VAD events
@@ -200,7 +200,7 @@ import { createVowel } from '@vowel.to/client';
 
 const vowel = createVowel({
   appId: 'your-app-id',
-  voiceConfig: {
+  _voiceConfig: {
     provider: 'vowel-prime',
     useServerVad: true,
   },
@@ -422,7 +422,7 @@ await vowel.startSession({ restoreState: savedState });
 **Solution:** Verify provider and STT configuration:
 
 ```typescript
-voiceConfig: {
+_voiceConfig: {
   provider: 'vowel-prime', // Required
   useServerVad: true,
   vadType: 'none', // Disable client VAD
@@ -441,14 +441,14 @@ voiceConfig: {
 ```typescript
 // Before (client-side VAD)
 const vowel = createVowel({
-  voiceConfig: {
+  _voiceConfig: {
     vadType: 'silero', // CPU-intensive
   },
 });
 
 // After (server-side VAD)
 const vowel = createVowel({
-  voiceConfig: {
+  _voiceConfig: {
     provider: 'vowel-prime',
     vadType: 'none', // Disable client VAD
     useServerVad: true, // Use server events
@@ -492,4 +492,3 @@ if (lastSession) {
 - [API Reference](./API_REFERENCE.md)
 - [Voice Configuration Guide](./VOICE_CONFIG.md)
 - [Architecture Documentation](../../docs/architecture/)
-

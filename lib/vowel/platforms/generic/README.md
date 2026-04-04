@@ -34,7 +34,7 @@ const { router, routes } = await initializeControlledNavigation({
 
 // Create Vowel client
 const vowel = new Vowel({
-  appId: 'your-app-id',
+  apiKey: 'vkey_public_xxx',
   router,
   routes
 });
@@ -430,4 +430,3 @@ MIT
 ## Contributing
 
 Contributions welcome! Please read the [contributing guidelines](../../../../../CONTRIBUTING.md) first.
-

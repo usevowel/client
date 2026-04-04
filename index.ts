@@ -32,5 +32,8 @@ export type {
   VowelEventContext,
 } from './lib/vowel/types';
 
+// Re-export VoiceSessionState from managers
+export type { VoiceSessionState } from './lib/vowel/managers';
+
 // Re-export version from version module for consistency
 export { VOWEL_VERSION as VERSION } from './lib/vowel/version';

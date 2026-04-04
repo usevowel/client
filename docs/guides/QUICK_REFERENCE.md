@@ -25,7 +25,7 @@ const { navigationAdapter, automationAdapter } = createDirectAdapters({
 });
 
 const vowel = new Vowel({
-  appId: 'your-app-id',
+  apiKey: 'vkey_public_xxx',
   navigationAdapter,
   automationAdapter
 });
@@ -121,8 +121,8 @@ unsubscribe();
 
 ```typescript
 const vowel = new Vowel({
-  appId: 'your-app-id',
-  voiceConfig: {
+  apiKey: 'vkey_public_xxx',
+  _voiceConfig: {
     // Provider
     provider: 'grok', // 'gemini' | 'openai' | 'grok' | 'vowel-prime'
     
@@ -136,7 +136,7 @@ const vowel = new Vowel({
     
     // VAD (Voice Activity Detection)
     vadType: 'simple', // 'simple' | 'silero' | 'none'
-    useServerVad: false, // Use server-side VAD (recommended for vowel-prime)
+    useServerVad: false, // Use server-side VAD (recommended for hosted Vowel Prime)
     
     // Tool retry configuration
     toolRetry: {

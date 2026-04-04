@@ -36,7 +36,12 @@ import { TypingSoundManager } from "../managers/TypingSoundManager";
 import { FloatingCursorManager } from "../managers/FloatingCursorManager";
 import { VOWEL_VERSION, VOWEL_BUILD_TIME } from "../version";
 import { ActionNotifier } from "./action-notifier";
+import type { ActionNotification } from "./action-notifier";
 import { BorderGlowManager } from "../ui/border-glow";
+import {
+  getSafeConnectionStoragePrefix,
+  resolveConnectionIdentity,
+} from "../utils/connectionIdentity";
 import { FloatingActionPillManager } from "../ui/FloatingActionPill";
 import { isMobileOrTablet } from "../utils/device-detection";
 import { DarkModeManager } from "../utils/darkMode";
@@ -53,7 +58,7 @@ import { warnDeprecated } from "../utils/deprecation";
  * import { router } from './router';
  *
  * export const vowel = new Vowel({
- *   appId: 'your-app-id',
+ *   apiKey: 'vkey_public_xxx',
  *   router: tanstackRouterAdapter(router),
  *   routes: [
  *     { path: '/products', description: 'Browse products' },
@@ -124,8 +129,15 @@ export class Vowel {
     const resolvedTurnDetectionPreset =
       config.turnDetectionPreset ?? hiddenVoiceConfig?.turnDetectionPreset;
 
-    const hasAppId = !!config.appId;
+    const resolvedConnectionIdentity = resolveConnectionIdentity(config);
+    const hasIdentifier = !!resolvedConnectionIdentity.identifier;
     const hasDirectToken = !!hiddenVoiceConfig?.token;
+
+    if (config.apiKey && config.appId && config.apiKey.trim() !== config.appId.trim()) {
+      console.warn(
+        '⚠️  Both "apiKey" and "appId" were provided with different values. Preferring "apiKey" during the transition to apiKey-first token auth.'
+      );
+    }
 
     if (hasDirectToken) {
       warnDeprecated(
@@ -180,9 +192,9 @@ export class Vowel {
       );
     }
 
-    if (!hasAppId && !hasDirectToken) {
+    if (!hasIdentifier && !hasDirectToken) {
       throw new Error(
-        'VowelClient requires either appId (for platform-managed tokens) or _voiceConfig.token (for direct connections) to be provided in config. ' +
+        'VowelClient requires either apiKey/appId (for token-issued connections) or _voiceConfig.token (for direct connections) to be provided in config. ' +
         'See https://vowel.to/docs/recipes/connection-paradigms for more information.'
       );
     }
@@ -205,6 +217,8 @@ export class Vowel {
 
     this.config = {
       ...config,
+      apiKey: resolvedConnectionIdentity.apiKey,
+      appId: resolvedConnectionIdentity.appId,
       _voiceConfig: hiddenVoiceConfig,
       language: resolvedLanguage,
       initialGreetingPrompt: resolvedInitialGreetingPrompt,
@@ -254,7 +268,8 @@ export class Vowel {
     this.actionNotifier = ActionNotifier.getInstance();
     
     // Initialize dark mode manager (always enabled for UI components)
-    const storagePrefix = config.darkMode?.storageKeyPrefix || config.appId || 'vowel';
+    const storagePrefix =
+      config.darkMode?.storageKeyPrefix || getSafeConnectionStoragePrefix(config);
     this.darkModeManager = new DarkModeManager(storagePrefix);
     
     // Set initial dark mode state if explicitly provided in config
@@ -293,11 +308,12 @@ export class Vowel {
     // Initialize session manager with configuration
     this.sessionManager = new SessionManager({
       appId: this.config.appId,
+      apiKey: this.config.apiKey,
       routes: this._routes,
       toolManager: this.toolManager,
       audioManager: this.audioManager,
       typingSoundManager: this.typingSoundManager,
-      voiceConfig: hiddenVoiceConfig,
+      _voiceConfig: hiddenVoiceConfig,
       language: resolvedLanguage,
       initialGreetingPrompt: resolvedInitialGreetingPrompt,
       turnDetectionPreset: resolvedTurnDetectionPreset,
@@ -851,6 +867,13 @@ export class Vowel {
   }
 
   /**
+   * Get token issuer identifier alias
+   */
+  get apiKey(): string | undefined {
+    return this.config.apiKey;
+  }
+
+  /**
    * Get router adapter (legacy)
    * @deprecated Use navigationAdapter property instead
    */
@@ -1012,6 +1035,10 @@ export class Vowel {
    */
   getActionsConfig(): Record<string, VowelAction> {
     return this.toolManager.getToolDefinitions();
+  }
+
+  onActionNotification(listener: (notification: ActionNotification) => void): () => void {
+    return this.actionNotifier.subscribe(listener);
   }
 
   /**
