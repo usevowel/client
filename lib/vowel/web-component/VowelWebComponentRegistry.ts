@@ -6,7 +6,7 @@
  */
 
 import type { Vowel } from "../core/VowelClient";
-import type { VowelAction, ActionHandler } from "../types";
+import type { VowelAction, ActionHandler, VowelVoiceConfig, VowelClientConfig } from "../types";
 
 /**
  * Action registration entry
@@ -28,14 +28,17 @@ interface InstanceState {
   actions: Map<string, ActionRegistration>;
   /** Instance configuration */
   config: {
+    instructions?: string;
     systemInstructionOverride?: string;
     language?: string;
     initialGreetingPrompt?: string;
     turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
-    _voiceConfig?: {
-      model?: string;
-      voice?: string;
-    };
+    /** @deprecated Prefer `_voiceConfig`. */
+    voiceConfig?: VowelVoiceConfig;
+    _voiceConfig?: VowelVoiceConfig;
+    floatingCursor?: VowelClientConfig['floatingCursor'];
+    _caption?: VowelClientConfig['_caption'];
+    borderGlow?: VowelClientConfig['borderGlow'];
   };
 }
 

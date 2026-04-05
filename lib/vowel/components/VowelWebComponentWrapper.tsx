@@ -9,7 +9,7 @@ import { VowelProvider } from "./VowelProviderSimple";
 import { VowelAgent } from "./components";
 import type { VowelAgentProps } from "./components";
 import { Vowel } from "../core/VowelClient";
-import type { VowelClientConfig } from "../types";
+import type { VowelClientConfig, VowelVoiceConfig } from "../types";
 import type { RouterAdapter } from "../types/types";
 
 // Import platform adapters
@@ -69,14 +69,17 @@ export interface WebComponentAction {
  */
 export interface WebComponentConfig {
   /** Override the system prompt/instruction */
+  instructions?: string;
   systemInstructionOverride?: string;
   language?: string;
   initialGreetingPrompt?: string;
   turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
-  _voiceConfig?: {
-    model?: string;
-    voice?: string;
-  };
+  /** @deprecated Prefer `_voiceConfig`. */
+  voiceConfig?: VowelVoiceConfig;
+  _voiceConfig?: VowelVoiceConfig;
+  floatingCursor?: VowelClientConfig['floatingCursor'];
+  _caption?: VowelClientConfig['_caption'];
+  borderGlow?: VowelClientConfig['borderGlow'];
 }
 
 /**
@@ -686,6 +689,9 @@ export function VowelWebComponentWrapper({
           ...(router && { router }),
           routes,
           // Pass configuration overrides
+          ...(parsedConfig.instructions && {
+            instructions: parsedConfig.instructions,
+          }),
           ...(parsedConfig.systemInstructionOverride && {
             systemInstructionOverride: parsedConfig.systemInstructionOverride,
           }),
@@ -698,11 +704,22 @@ export function VowelWebComponentWrapper({
           ...(parsedConfig.turnDetectionPreset && {
             turnDetectionPreset: parsedConfig.turnDetectionPreset,
           }),
+          ...(parsedConfig.voiceConfig && {
+            voiceConfig: parsedConfig.voiceConfig,
+          }),
           ...(parsedConfig._voiceConfig && {
             _voiceConfig: parsedConfig._voiceConfig,
           }),
+          ...(parsedConfig._caption && {
+            _caption: parsedConfig._caption,
+          }),
+          ...(parsedConfig.borderGlow && {
+            borderGlow: parsedConfig.borderGlow,
+          }),
           // Add floating cursor config
-          ...(floatingCursorConfig && { floatingCursor: floatingCursorConfig }),
+          ...((floatingCursorConfig || parsedConfig.floatingCursor) && {
+            floatingCursor: floatingCursorConfig ?? parsedConfig.floatingCursor,
+          }),
         };
 
         // Check for vowel-instructions component (wait up to 500ms)
@@ -780,13 +797,20 @@ export function VowelWebComponentWrapper({
             hasAutomationAdapter: !!automationAdapter,
             hasRouter: !!router,
             hasSystemInstructionOverride: !!parsedConfig.systemInstructionOverride,
+            hasInstructions: !!parsedConfig.instructions,
+            hasLegacyVoiceConfig: !!parsedConfig.voiceConfig,
             hasVoiceConfig: !!parsedConfig._voiceConfig,
+            hasCaptionConfig: !!parsedConfig._caption,
+            hasBorderGlowConfig: !!parsedConfig.borderGlow,
             floatingCursorEnabled: !!floatingCursorConfig?.enabled,
           });
           
           // Update clientConfig with any discovered instructions
           const finalClientConfig: VowelClientConfig = {
             ...clientConfig,
+            ...(parsedConfig.instructions && {
+              instructions: parsedConfig.instructions,
+            }),
             ...(parsedConfig.systemInstructionOverride && {
               systemInstructionOverride: parsedConfig.systemInstructionOverride,
             }),

@@ -124,7 +124,8 @@ export class BorderGlowManager {
       }
       
       .vowel-border-glow.hidden {
-        opacity: 0;
+        opacity: 0 !important;
+        animation: none !important;
       }
     `;
     document.head.appendChild(this.styleElement);
@@ -230,7 +231,8 @@ export class BorderGlowManager {
         }
         
         .vowel-border-glow.hidden {
-          opacity: 0;
+          opacity: 0 !important;
+          animation: none !important;
         }
       `;
     }
@@ -288,7 +290,6 @@ export function createBorderGlow(config?: Partial<BorderGlowConfig>): BorderGlow
     ...config,
   });
 }
-
 
 
 

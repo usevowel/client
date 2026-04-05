@@ -7,7 +7,7 @@
 
 import { vowelRegistry } from "./VowelWebComponentRegistry";
 import type { Vowel } from "../core/VowelClient";
-import type { VowelAction, ActionHandler } from "../types";
+import type { VowelAction, ActionHandler, VowelVoiceConfig, VowelClientConfig } from "../types";
 
 /**
  * Extended interface for the vowel-voice-widget element
@@ -68,14 +68,17 @@ export interface VowelVoiceWidgetElement extends HTMLElement {
    * });
    */
   setConfig(config: {
+    instructions?: string;
     systemInstructionOverride?: string;
     language?: string;
     initialGreetingPrompt?: string;
     turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
-    _voiceConfig?: {
-      model?: string;
-      voice?: string;
-    };
+    /** @deprecated Prefer `_voiceConfig`. */
+    voiceConfig?: VowelVoiceConfig;
+    _voiceConfig?: VowelVoiceConfig;
+    floatingCursor?: VowelClientConfig['floatingCursor'];
+    _caption?: VowelClientConfig['_caption'];
+    borderGlow?: VowelClientConfig['borderGlow'];
   }): void;
 
   /**
