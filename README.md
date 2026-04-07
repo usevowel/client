@@ -16,6 +16,7 @@ Add a voice agent to your web app with top-level `apiKey`/`appId` token-issuer i
 - [demos](https://github.com/usevowel/demos)
 - [vowelbot](https://add.vowel.to)
 - [Community](https://discord.gg/3gpfZsCm)
+- [Videos](https://www.youtube.com/@voweldotto)
 
 ## Install
 
