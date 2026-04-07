@@ -105,7 +105,7 @@
     "vowel"
   ],
   "author": "vowel.to",
-  "license": "PROPRIETARY",
+  "license": "MIT",
   "homepage": "https://vowel.to",
   "repository": {
     "type": "git",
