@@ -5,7 +5,7 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react';
-import { action } from '@storybook/addon-actions';
+// import { action } from '@storybook/addon-actions';
 import { FloatingMicButton } from '../FloatingMicButton';
 
 const meta: Meta<typeof FloatingMicButton> = {
@@ -57,7 +57,7 @@ const meta: Meta<typeof FloatingMicButton> = {
       ? restArgs // Modal opens internally
       : {
           ...restArgs,
-          onSettingsClick: action('onSettingsClick'), // Only action, no modal
+          // onSettingsClick: action('onSettingsClick'), // Only action, no modal
         };
     
     return (
