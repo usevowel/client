@@ -5,13 +5,16 @@ Add a voice agent to your web app with top-level `apiKey`/`appId` token-issuer i
 [![npm version](https://img.shields.io/npm/v/@vowel.to/client.svg)](https://www.npmjs.com/package/@vowel.to/client)
 
 > **⚠️ Beta Release** — This open-source release is in beta. You may encounter rough edges, incomplete features, or breaking changes. We are actively reviewing and merging community PRs, but please expect some instability as we iterate toward a stable release. Your feedback and contributions are welcome.
+>
+> **SaaS coming soon** — Currently requires the self-hosted Vowel stack. See [github.com/usevowel/vowel/stack](https://github.com/usevowel/vowel/tree/main/stack) for setup instructions.
 
 ## Links
 
 - [vowel.to](https://vowel.to)
-- [Documentation](https://docs.vowel.to)
-- [Client Quick Reference](https://docs.vowel.to/client/quick-reference)
+- [Self-Host](https://docs.vowel.to/self-hosted/)
 - [Agent Skills](https://github.com/usevowel/skills)
+- [demos](https://github.com/usevowel/demos)
+- [vowelbot](https://add.vowel.to)
 - [Community](https://discord.gg/3gpfZsCm)
 
 ## Install
@@ -38,7 +41,7 @@ const { navigationAdapter, automationAdapter } = createNextJSAdapters(router, {
 });
 
 const vowel = new Vowel({
-  apiKey: 'vkey_public_xxx',
+  apiKey: 'your-api-key',
   navigationAdapter,
   automationAdapter,
   language: 'en-US',
@@ -88,7 +91,7 @@ CDN (no build step):
 <script src="https://unpkg.com/@vowel.to/client/standalone/vowel-voice-widget.min.js"></script>
 
 <vowel-voice-widget
-  api-key="vkey_public_xxx"
+  api-key="your-api-key"
   position="bottom-right">
 </vowel-voice-widget>
 ```
@@ -100,7 +103,7 @@ import '@vowel.to/client/standalone';
 
 // Then use in HTML or JSX
 <vowel-voice-widget
-  api-key="vkey_public_xxx"
+  api-key="your-api-key"
   position="bottom-right">
 </vowel-voice-widget>
 ```
@@ -119,7 +122,7 @@ CDN (no build step):
   });
 
   const vowelClient = new Vowel({
-    apiKey: 'vkey_public_xxx',
+    apiKey: 'your-api-key',
     navigationAdapter,
     automationAdapter,
     language: 'en-US',
@@ -142,7 +145,7 @@ const { navigationAdapter, automationAdapter } = createControlledAdapters({
 });
 
 const vowel = new Vowel({
-  apiKey: 'vkey_public_xxx',
+  apiKey: 'your-api-key',
   navigationAdapter,
   automationAdapter,
   language: 'en-US',
