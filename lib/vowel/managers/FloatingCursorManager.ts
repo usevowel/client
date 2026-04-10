@@ -33,7 +33,6 @@
  * ```
  */
 
-import { registerFloatingCursorWebComponent } from '../components/web-components/FloatingCursorWebComponent';
 import type { FloatingCursorConfig, FloatingCursorUpdate } from '../types';
 import type { FloatingCursorContextType } from '../components/FloatingCursorProvider';
 
@@ -106,9 +105,14 @@ export class FloatingCursorManager {
   }
 
   /**
-   * Initialize the floating cursor web component (web-component mode only)
+   * Initialize the floating cursor web component (web-component mode only).
+   *
+   * Uses a browser-guarded dynamic import so that the heavy
+   * `@r2wc/react-to-web-component` + React dependency chain is never
+   * evaluated at module-import time (keeping the manager SSR-safe).
+   * The custom element is created only after registration is ensured.
    */
-  private initializeCursor(): void {
+  private async initializeCursor(): Promise<void> {
     if (this.mode !== 'web-component') {
       console.warn('🎯 [FloatingCursorManager] initializeCursor called in react-context mode');
       return;
@@ -119,8 +123,18 @@ export class FloatingCursorManager {
       return;
     }
 
-    // Ensure web component is registered
-    registerFloatingCursorWebComponent();
+    // Dynamically import the web-component registration module.
+    // This avoids pulling @r2wc/react-to-web-component (and React)
+    // into the module-evaluation graph at import time.
+    try {
+      const { registerFloatingCursorWebComponent } = await import(
+        '../components/web-components/FloatingCursorWebComponent'
+      );
+      registerFloatingCursorWebComponent();
+    } catch (error) {
+      console.error('🎯 [FloatingCursorManager] Failed to load FloatingCursorWebComponent:', error);
+      return;
+    }
 
     // Create the web component element
     console.log('🎯 [FloatingCursorManager] Creating cursor web component with config:', this.config);

@@ -13,8 +13,6 @@
 
 import { DOMManipulator } from './dom-tools';
 import { FuzzyDOMSearcher } from './dom-search';
-import { registerControlledBannerWebComponent } from '../../components/web-components/ControlledBannerWebComponent';
-import { registerFloatingMicButtonWebComponent } from '../../components/web-components/FloatingMicButtonWebComponent';
 
 
 /**
@@ -33,7 +31,7 @@ let currentVoiceState = {
  * Create and show the "Controlled by Vowel" banner
  * Called when ping is received (confirms this tab is controlled)
  */
-function showControlledBanner(): void {
+async function showControlledBanner(): Promise<void> {
   console.log('🎨 [NavigationListener] Showing controlled banner...');
   
   // Check if banner already exists
@@ -42,7 +40,8 @@ function showControlledBanner(): void {
     return;
   }
 
-  // Ensure web component is registered
+  // Lazily load and register the web component (browser-only path)
+  const { registerControlledBannerWebComponent } = await import('../../components/web-components/ControlledBannerWebComponent');
   registerControlledBannerWebComponent();
 
   // Create the banner web component
@@ -76,7 +75,7 @@ function showControlledBanner(): void {
 /**
  * Create and show the floating microphone button (mimics main tab's floating button)
  */
-function showFloatingMicButton(): void {
+async function showFloatingMicButton(): Promise<void> {
   console.log('🎤 [NavigationListener] Creating floating microphone button...');
   
   // Check if button already exists
@@ -85,7 +84,8 @@ function showFloatingMicButton(): void {
     return;
   }
 
-  // Ensure web component is registered
+  // Lazily load and register the web component (browser-only path)
+  const { registerFloatingMicButtonWebComponent } = await import('../../components/web-components/FloatingMicButtonWebComponent');
   registerFloatingMicButtonWebComponent();
 
   // Create the floating mic button web component
@@ -351,11 +351,11 @@ export function initializeNavigationListener(): void {
         
         // Show "Controlled by Vowel" banner when we receive config
         console.log('   🎨 Showing controlled banner...');
-        showControlledBanner();
+        await showControlledBanner();
         
         // Show floating microphone button
         console.log('   🎤 Showing floating microphone button...');
-        showFloatingMicButton();
+        await showFloatingMicButton();
         
         // Send ack back to confirm we received the config
         const ackMessage = {
