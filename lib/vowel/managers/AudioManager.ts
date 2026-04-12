@@ -102,6 +102,42 @@ export class AudioManager {
     this.config = config;
   }
 
+  private getLoopbackAudioMountPoint(): HTMLElement {
+    const globalAudioHost = (window as any).__vowelAudioHost;
+    if (globalAudioHost instanceof HTMLElement) {
+      return globalAudioHost;
+    }
+
+    return document.body;
+  }
+
+  private async ensurePlaybackReady(): Promise<void> {
+    if (this.refs.outputContext && this.refs.outputContext.state !== 'running') {
+      try {
+        await this.refs.outputContext.resume();
+        console.log(`✅ Output AudioContext resumed from state "${this.refs.outputContext.state}"`);
+      } catch (error) {
+        console.warn("⚠️ Failed to resume output AudioContext:", error);
+      }
+    }
+
+    if (this.refs.loopbackAudioElement) {
+      const mountPoint = this.getLoopbackAudioMountPoint();
+      if (this.refs.loopbackAudioElement.parentNode !== mountPoint) {
+        mountPoint.appendChild(this.refs.loopbackAudioElement);
+      }
+
+      if (this.refs.loopbackAudioElement.paused) {
+        try {
+          await this.refs.loopbackAudioElement.play();
+          console.log("✅ Loopback audio element resumed");
+        } catch (error) {
+          console.warn("⚠️ Failed to resume loopback audio element:", error);
+        }
+      }
+    }
+  }
+
   private async createOutputAudioContext(sampleRate: number): Promise<void> {
     this.refs.outputContext = new (window.AudioContext ||
       (window as any).webkitAudioContext)({
@@ -378,7 +414,7 @@ export class AudioManager {
       
       // Hide the audio element (it's just for playback, not user-facing controls)
       this.refs.loopbackAudioElement.style.display = 'none';
-      document.body.appendChild(this.refs.loopbackAudioElement);
+      this.getLoopbackAudioMountPoint().appendChild(this.refs.loopbackAudioElement);
       
       // CRITICAL: Explicitly play the audio element to ensure it's actually playing
       // Autoplay may be blocked by browser policies, so we need to call play() explicitly
@@ -935,6 +971,8 @@ export class AudioManager {
     }
 
     try {
+      await this.ensurePlaybackReady();
+
       // First audio chunk - AI started speaking
       if (!this.isAISpeaking) {
         this.isAISpeaking = true;
@@ -989,6 +1027,10 @@ export class AudioManager {
     } catch (error) {
       console.error("❌ Failed to play audio:", error);
     }
+  }
+
+  async resumePlayback(): Promise<void> {
+    await this.ensurePlaybackReady();
   }
 
   /**

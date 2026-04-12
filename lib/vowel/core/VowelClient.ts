@@ -1492,6 +1492,10 @@ export class Vowel {
     console.log("✅ Session resumed");
   }
 
+  async resumePlayback(): Promise<void> {
+    await this.audioManager.resumePlayback();
+  }
+
   /**
    * Toggle session on/off
    */
