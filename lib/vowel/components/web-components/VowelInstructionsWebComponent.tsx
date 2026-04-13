@@ -12,15 +12,18 @@
 import r2wc from "@r2wc/react-to-web-component";
 import { VowelInstructions } from "../VowelInstructions";
 
-/**
- * Convert VowelInstructions to Web Component
- */
-const VowelInstructionsWebComponent = r2wc(VowelInstructions, {
-  props: {
-    id: "string",
-    content: "string",
-  },
-});
+let VowelInstructionsWebComponent: CustomElementConstructor | undefined;
+
+function getVowelInstructionsWebComponent(): CustomElementConstructor {
+  VowelInstructionsWebComponent ??= r2wc(VowelInstructions, {
+    props: {
+      id: "string",
+      content: "string",
+    },
+  });
+
+  return VowelInstructionsWebComponent;
+}
 
 /**
  * Register the vowel-instructions custom element
@@ -36,7 +39,7 @@ export function registerVowelInstructionsWebComponent() {
 
   if (!window.customElements.get("vowel-instructions")) {
     console.log("📝 [VowelInstructionsWebComponent] Registering custom element...");
-    window.customElements.define("vowel-instructions", VowelInstructionsWebComponent);
+    window.customElements.define("vowel-instructions", getVowelInstructionsWebComponent());
     console.log("✅ [VowelInstructionsWebComponent] Custom element registered");
   } else {
     console.log("⏭️ [VowelInstructionsWebComponent] Already registered");
@@ -50,7 +53,6 @@ if (typeof window !== "undefined") {
 
 // Export the web component
 export { VowelInstructionsWebComponent };
-
 
 
 

@@ -1,11 +1,91 @@
 import { join, resolve } from 'node:path';
 import react from '@vitejs/plugin-react-swc';
 import preact from '@preact/preset-vite';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import dts from 'unplugin-dts/vite';
-import { libInjectCss } from 'vite-plugin-lib-inject-css';
 
 import { peerDependencies } from './package.json';
+
+type CssAwareChunk = {
+  viteMetadata?: {
+    importedCss?: Set<string>;
+  };
+};
+
+function embedVowelCssInJs(): Plugin {
+  const styleId = 'vowel-client-styles';
+
+  return {
+    name: 'vowel-embed-css-in-js',
+    apply: 'build',
+    enforce: 'post',
+    generateBundle(_options, bundle) {
+      const cssAssets = new Map<string, string>();
+
+      for (const [fileName, asset] of Object.entries(bundle)) {
+        if (asset.type === 'asset' && fileName.endsWith('.css')) {
+          cssAssets.set(fileName, typeof asset.source === 'string' ? asset.source : new TextDecoder().decode(asset.source));
+        }
+      }
+
+      if (cssAssets.size === 0) {
+        return;
+      }
+
+      const chunksWithCss = Object.values(bundle).filter((chunk) => {
+        if (chunk.type !== 'chunk') {
+          return false;
+        }
+
+        const importedCss = (chunk as CssAwareChunk).viteMetadata?.importedCss;
+        return importedCss ? importedCss.size > 0 : false;
+      });
+
+      const targetChunks = chunksWithCss.length > 0
+        ? chunksWithCss
+        : Object.values(bundle).filter((chunk) => chunk.type === 'chunk' && chunk.isEntry);
+
+      for (const chunk of targetChunks) {
+        if (chunk.type !== 'chunk') {
+          continue;
+        }
+
+        const importedCss = (chunk as CssAwareChunk).viteMetadata?.importedCss;
+        const cssFiles = importedCss && importedCss.size > 0 ? [...importedCss] : [...cssAssets.keys()];
+        const css = cssFiles.map((fileName) => cssAssets.get(fileName)).filter(Boolean).join('\n');
+
+        if (!css) {
+          continue;
+        }
+
+        const injectionCode = [
+          '(function(){',
+          'if(typeof document==="undefined")return;',
+          `var css=${JSON.stringify(css)};`,
+          `var style=document.getElementById(${JSON.stringify(styleId)});`,
+          'if(!style){',
+          'style=document.createElement("style");',
+          `style.id=${JSON.stringify(styleId)};`,
+          'style.setAttribute("data-vowel-client-styles","");',
+          'style.appendChild(document.createTextNode(css));',
+          'document.head.appendChild(style);',
+          'return;',
+          '}',
+          'if(style.textContent.indexOf(css)===-1){',
+          'style.appendChild(document.createTextNode("\\n"+css));',
+          '}',
+          '})();',
+          '',
+        ].join('');
+
+        const useStrictDirective = "'use strict';\n";
+        chunk.code = chunk.code.startsWith(useStrictDirective)
+          ? useStrictDirective + injectionCode + chunk.code.slice(useStrictDirective.length)
+          : injectionCode + chunk.code;
+      }
+    },
+  };
+}
 
 //@ts-ignore - mode is not defined in the type ConfigEnv
 export default defineConfig(({ mode }) => {
@@ -38,9 +118,9 @@ export default defineConfig(({ mode }) => {
       // Use Preact for standalone builds (smaller bundle), React for library builds
       isBundled ? preact() : react(),
       // Tailwind CSS v4 is handled via PostCSS (see postcss.config.cjs)
-      // Inject CSS into JS for library builds (also emits separate CSS file)
+      // Embed CSS into JS for library builds while still emitting the CSS export.
       // For standalone builds, CSS is bundled directly into the IIFE
-      ...(!isStandalone ? [libInjectCss()] : []),
+      ...(!isStandalone ? [embedVowelCssInJs()] : []),
       // Only generate types for library builds, not standalone
       ...(!isStandalone ? [dts({
         tsconfigPath: './tsconfig.json',

@@ -12,27 +12,30 @@
 import r2wc from "@r2wc/react-to-web-component";
 import { FloatingMicButton } from "../FloatingMicButton";
 
-/**
- * Convert FloatingMicButton to Web Component
- */
-const FloatingMicButtonWebComponent = r2wc(FloatingMicButton, {
-  props: {
-    isConnected: "boolean",
-    isConnecting: "boolean",
-    isDisconnecting: "boolean",
-    isUserSpeaking: "boolean",
-    isAiSpeaking: "boolean",
-    isAiThinking: "boolean",
-    isToolExecuting: "boolean",
-    isResuming: "boolean",
-    className: "string",
-    position: "string",
-    zIndex: "number",
-    title: "string",
-    inline: "boolean",
-    showActionIcon: "boolean",
-  },
-});
+let FloatingMicButtonWebComponent: CustomElementConstructor | undefined;
+
+function getFloatingMicButtonWebComponent(): CustomElementConstructor {
+  FloatingMicButtonWebComponent ??= r2wc(FloatingMicButton, {
+    props: {
+      isConnected: "boolean",
+      isConnecting: "boolean",
+      isDisconnecting: "boolean",
+      isUserSpeaking: "boolean",
+      isAiSpeaking: "boolean",
+      isAiThinking: "boolean",
+      isToolExecuting: "boolean",
+      isResuming: "boolean",
+      className: "string",
+      position: "string",
+      zIndex: "number",
+      title: "string",
+      inline: "boolean",
+      showActionIcon: "boolean",
+    },
+  });
+
+  return FloatingMicButtonWebComponent;
+}
 
 /**
  * Register the vowel-floating-mic-button custom element
@@ -48,7 +51,7 @@ export function registerFloatingMicButtonWebComponent() {
 
   if (!window.customElements.get("vowel-floating-mic-button")) {
     console.log("🎤 [FloatingMicButtonWebComponent] Registering custom element...");
-    window.customElements.define("vowel-floating-mic-button", FloatingMicButtonWebComponent);
+    window.customElements.define("vowel-floating-mic-button", getFloatingMicButtonWebComponent());
     console.log("✅ [FloatingMicButtonWebComponent] Custom element registered");
   } else {
     console.log("⏭️ [FloatingMicButtonWebComponent] Already registered");
@@ -61,4 +64,3 @@ if (typeof window !== "undefined") {
 }
 
 export { FloatingMicButtonWebComponent };
-

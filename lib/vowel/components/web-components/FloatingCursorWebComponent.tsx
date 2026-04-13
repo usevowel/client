@@ -12,27 +12,30 @@
 import r2wc from "@r2wc/react-to-web-component";
 import { FloatingCursorComponent } from "../FloatingCursorComponent";
 
-/**
- * Convert FloatingCursorComponent to Web Component
- */
-const FloatingCursorWebComponent = r2wc(FloatingCursorComponent, {
-  props: {
-    x: "number",
-    y: "number",
-    text: "string",
-    isIdle: "boolean",
-    visible: "boolean",
-    cursorColor: "string",
-    cursorSize: "number",
-    badgeBackground: "string",
-    badgeTextColor: "string",
-    enableTyping: "boolean",
-    typingSpeed: "number",
-    enableBounce: "boolean",
-    transitionDuration: "number",
-    zIndex: "number",
-  },
-});
+let FloatingCursorWebComponent: CustomElementConstructor | undefined;
+
+function getFloatingCursorWebComponent(): CustomElementConstructor {
+  FloatingCursorWebComponent ??= r2wc(FloatingCursorComponent, {
+    props: {
+      x: "number",
+      y: "number",
+      text: "string",
+      isIdle: "boolean",
+      visible: "boolean",
+      cursorColor: "string",
+      cursorSize: "number",
+      badgeBackground: "string",
+      badgeTextColor: "string",
+      enableTyping: "boolean",
+      typingSpeed: "number",
+      enableBounce: "boolean",
+      transitionDuration: "number",
+      zIndex: "number",
+    },
+  });
+
+  return FloatingCursorWebComponent;
+}
 
 /**
  * Register the vowel-floating-cursor custom element
@@ -48,7 +51,7 @@ export function registerFloatingCursorWebComponent() {
 
   if (!window.customElements.get("vowel-floating-cursor")) {
     console.log("🎯 [FloatingCursorWebComponent] Registering custom element...");
-    window.customElements.define("vowel-floating-cursor", FloatingCursorWebComponent);
+    window.customElements.define("vowel-floating-cursor", getFloatingCursorWebComponent());
     console.log("✅ [FloatingCursorWebComponent] Custom element registered");
   } else {
     console.log("⏭️ [FloatingCursorWebComponent] Already registered");
@@ -64,4 +67,3 @@ if (typeof window !== "undefined" && document.readyState !== "loading") {
 }
 
 export { FloatingCursorWebComponent };
-

@@ -33,25 +33,31 @@ import { ControlledBanner } from "../ControlledBanner";
  * - speed: number - Animation speed (default: 1)
  * - height: string - Banner height (default: "48px")
  */
-const ControlledBannerWebComponent = r2wc(ControlledBanner, {
-  props: {
-    isConnected: "boolean",
-    isConnecting: "boolean",
-    isUserSpeaking: "boolean",
-    isAiSpeaking: "boolean",
-    isAiThinking: "boolean",
-    isToolExecuting: "boolean",
-    isResuming: "boolean",
-    className: "string",
-    zIndex: "number",
-    addBodyPadding: "boolean",
-    gradientColors: "json",
-    distortion: "number",
-    swirl: "number",
-    speed: "number",
-    height: "string",
-  },
-});
+let ControlledBannerWebComponent: CustomElementConstructor | undefined;
+
+function getControlledBannerWebComponent(): CustomElementConstructor {
+  ControlledBannerWebComponent ??= r2wc(ControlledBanner, {
+    props: {
+      isConnected: "boolean",
+      isConnecting: "boolean",
+      isUserSpeaking: "boolean",
+      isAiSpeaking: "boolean",
+      isAiThinking: "boolean",
+      isToolExecuting: "boolean",
+      isResuming: "boolean",
+      className: "string",
+      zIndex: "number",
+      addBodyPadding: "boolean",
+      gradientColors: "json",
+      distortion: "number",
+      swirl: "number",
+      speed: "number",
+      height: "string",
+    },
+  });
+
+  return ControlledBannerWebComponent;
+}
 
 /**
  * Register the vowel-controlled-banner custom element
@@ -67,7 +73,7 @@ export function registerControlledBannerWebComponent() {
 
   if (!window.customElements.get("vowel-controlled-banner")) {
     console.log("🎨 [ControlledBannerWebComponent] Registering custom element...");
-    window.customElements.define("vowel-controlled-banner", ControlledBannerWebComponent);
+    window.customElements.define("vowel-controlled-banner", getControlledBannerWebComponent());
     console.log("✅ [ControlledBannerWebComponent] Custom element registered");
   } else {
     console.log("⏭️ [ControlledBannerWebComponent] Already registered");
@@ -80,4 +86,3 @@ if (typeof window !== "undefined") {
 }
 
 export { ControlledBannerWebComponent };
-
