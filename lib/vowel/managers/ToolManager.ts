@@ -116,13 +116,25 @@ export interface ToolResult {
 }
 
 /**
+ * Options for ToolManager
+ */
+export interface ToolManagerOptions {
+  /** Whether to register navigation tools (navigate, getCurrentPageContext, listRoutes).
+   * Defaults to true for backwards compatibility. Set to false when no navigationAdapter
+   * is provided so the AI doesn't see navigation tools it can't use. */
+  enableNavigation?: boolean;
+}
+
+/**
  * Tool Manager class
  * Manages registration and execution of tools for the voice agent
  */
 export class ToolManager {
   private tools: Map<string, Tool> = new Map();
+  private options: ToolManagerOptions;
 
-  constructor() {
+  constructor(options: ToolManagerOptions = {}) {
+    this.options = options;
     // Register default tools
     this.registerDefaultTools();
   }
@@ -245,6 +257,7 @@ export class ToolManager {
    * Register all default tools
    */
   private registerDefaultTools(): void {
+    if (this.options.enableNavigation !== false) {
     // Navigation tool
     this.registerTool("navigate", {
       description: "Navigate to a different page or route in the application. ALWAYS provide a concise action description.",
@@ -334,6 +347,7 @@ export class ToolManager {
         source: "configuration",
       };
     });
+    }
   }
 
   /**

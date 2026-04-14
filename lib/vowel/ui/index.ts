@@ -16,14 +16,17 @@ export type { BorderGlowConfig } from './border-glow';
 // Floating Action Pill
 export {
   FloatingActionPill,
-  FloatingActionPillManager,
-  createFloatingActionPill,
 } from './FloatingActionPill';
 export type {
-  FloatingActionPillConfig,
   FloatingActionPillProps,
 } from './FloatingActionPill';
-
+export {
+  FloatingActionPillManager,
+  createFloatingActionPill,
+} from './FloatingActionPillManager';
+export type {
+  FloatingActionPillConfig,
+} from './FloatingActionPillManager';
 
 
 

@@ -551,8 +551,7 @@ export class SessionManager {
       }
 
       const prompt = [
-        "Notify the user that the voice session is ready and deliver the initial greeting now.",
-        `Follow this greeting guidance: ${initialGreetingPrompt}`,
+        `${initialGreetingPrompt}`,
       ].join("\n\n");
 
       console.log(`👋 [SessionManager] Triggering hosted initial greeting for ${provider}`);
@@ -749,6 +748,7 @@ export class SessionManager {
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED:
           // Server-side VAD detected user stopped speaking
           this.setServerSpeechActive(false, "stopped");
+          this.userStoppedSpeakingTime = Date.now();
           if (this.getHiddenVoiceConfig()?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🔇 [SessionManager] User stopped speaking (server VAD)");
             this.config.onUserSpeakingChange?.(false);
@@ -1013,19 +1013,6 @@ export class SessionManager {
             console.log("❌ [SessionManager] Tool execution cleared (error occurred)");
           }
           this.config.onError?.(message.payload.message);
-          break;
-
-        case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED:
-          console.log("🗣️ User started speaking");
-          break;
-
-        case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED:
-          console.log("🤐 User stopped speaking");
-          this.userStoppedSpeakingTime = Date.now();
-          
-          // Don't start thinking here - wait for turn_started (response.created)
-          // This ensures thinking only starts when AI actually begins processing
-          console.log("🤐 [SessionManager] User stopped speaking - waiting for turn_started to start thinking");
           break;
 
         default:
@@ -1958,7 +1945,7 @@ export class SessionManager {
       }
 
       // Build the notification prompt
-      let prompt = `Notify the user: ${JSON.stringify(eventDetails)}`;
+      let prompt = `<SYSTEM_NOTIFICATION>${JSON.stringify(eventDetails)}</SYSTEM_NOTIFICATION>`;
       
       // Add context if provided
       if (context && Object.keys(context).length > 0) {

@@ -1,4 +1,5 @@
 import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react-swc';
 import preact from '@preact/preset-vite';
 import { defineConfig, type Plugin } from 'vite';
@@ -87,6 +88,23 @@ function embedVowelCssInJs(): Plugin {
   };
 }
 
+function emitAudioWorkletForExtensions(): Plugin {
+  return {
+    name: 'vowel-emit-audio-worklet',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'audio-processor.worklet.js',
+        source: readFileSync(
+          resolve(__dirname, 'lib/vowel/managers/audio-processor.worklet.js'),
+          'utf8'
+        ),
+      });
+    },
+  };
+}
+
 //@ts-ignore - mode is not defined in the type ConfigEnv
 export default defineConfig(({ mode }) => {
   const isStandalone = mode === 'standalone';
@@ -118,6 +136,7 @@ export default defineConfig(({ mode }) => {
       // Use Preact for standalone builds (smaller bundle), React for library builds
       isBundled ? preact() : react(),
       // Tailwind CSS v4 is handled via PostCSS (see postcss.config.cjs)
+      emitAudioWorkletForExtensions(),
       // Embed CSS into JS for library builds while still emitting the CSS export.
       // For standalone builds, CSS is bundled directly into the IIFE
       ...(!isStandalone ? [embedVowelCssInJs()] : []),
@@ -167,13 +186,13 @@ export default defineConfig(({ mode }) => {
         formats: ['iife'],
       } : {
         // Library build (peer dependencies external)
-        // NOTE: Web components are NOT included in library builds - they are ONLY in standalone builds
-        // This prevents @r2wc/react-to-web-component from bundling React into library builds
         entry: {
           // Main client library (framework-agnostic)
           index: resolve(__dirname, join('.', 'index.ts')),
           // React-specific exports
           react: resolve(__dirname, join('.', 'react.ts')),
+          // Web component exports
+          components: resolve(__dirname, join('.', 'components.ts')),
           // Shopify platform adapter
           'platforms/shopify': resolve(__dirname, join('.', 'platforms', 'shopify.ts')),
           // Extension platform adapter
@@ -216,14 +235,15 @@ export default defineConfig(({ mode }) => {
         // - Any react/* or react-dom/* subpath imports
         //
         // What gets bundled:
-        // - All non-peer dependencies EXCEPT web component dependencies
+        // - All non-peer dependencies except dependencies explicitly externalized below
         //
         // What does NOT get bundled (externalized):
         // - React, react-dom (peer dependencies)
-        // - @r2wc/react-to-web-component (web components are standalone-only)
+        // - @r2wc/react-to-web-component (web component adapter dependency)
         //
         // Package.json exports:
-        // - Library exports point to dist/client/* (NO web components)
+        // - Library exports point to dist/client/*
+        // - Web components are available from @vowel.to/client/components
         // - Standalone export points to dist/standalone/* (includes web components)
         // ========================================================================
         external: (id, _parentId) => {
@@ -240,8 +260,7 @@ export default defineConfig(({ mode }) => {
             return true;
           }
           
-          // Externalize @r2wc/react-to-web-component - web components are standalone-only
-          // This ensures web component code (which bundles React) is never included in library builds
+          // Externalize @r2wc/react-to-web-component so consumers do not get a bundled React copy.
           if (id === '@r2wc/react-to-web-component') {
             return true;
           }

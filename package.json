@@ -28,6 +28,16 @@
         "default": "./dist/client/react.cjs"
       }
     },
+    "./components": {
+      "import": {
+        "types": "./dist/client/components.d.ts",
+        "default": "./dist/client/components.mjs"
+      },
+      "require": {
+        "types": "./dist/client/components.d.ts",
+        "default": "./dist/client/components.cjs"
+      }
+    },
     "./platforms/shopify": {
       "import": {
         "types": "./dist/client/platforms/shopify.d.ts",
@@ -174,7 +184,8 @@
     "vite-plugin-lib-inject-css": "^2.2.2"
   },
   "sideEffects": [
-    "**/*.css"
+    "**/*.css",
+    "**/device-detection*"
   ],
   "resolutions": {
     "typescript": "5.9.3"

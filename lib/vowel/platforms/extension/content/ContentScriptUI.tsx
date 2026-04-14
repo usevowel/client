@@ -13,7 +13,7 @@ import { ExtensionContentBridge } from './ExtensionContentBridge';
 // import { ProxyFloatingButton } from './components/ProxyFloatingButton';
 import { ProxyFloatingCursor } from './components/ProxyFloatingCursor';
 import { BorderGlowManager } from '../../../ui/border-glow';
-import { FloatingActionPillManager } from '../../../ui/FloatingActionPill';
+import { FloatingActionPillManager } from '../../../ui/FloatingActionPillManager';
 import { ActionNotifier } from '../../../core/action-notifier';
 import { isMobileOrTablet } from '../../../utils/device-detection';
 
@@ -277,4 +277,3 @@ export class ContentScriptUI {
     return this.root !== null && this.reactRoot !== null;
   }
 }
-

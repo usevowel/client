@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Improved
+
+#### Web Component Subpath Exports
+
+- Added `@vowel.to/client/components` as the package sub-entrypoint for web component APIs.
+- Kept `@vowel.to/client` focused on core client exports so importing `Vowel` does not pull React UI modules into the root entrypoint.
+
 ### Added
 
 #### Pause/Resume Sessions and State Persistence (v0.1.2-295)

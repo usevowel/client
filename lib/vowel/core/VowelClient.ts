@@ -42,7 +42,7 @@ import {
   getSafeConnectionStoragePrefix,
   resolveConnectionIdentity,
 } from "../utils/connectionIdentity";
-import { FloatingActionPillManager } from "../ui/FloatingActionPill";
+import { FloatingActionPillManager } from "../ui/FloatingActionPillManager";
 import { isMobileOrTablet } from "../utils/device-detection";
 import { DarkModeManager } from "../utils/darkMode";
 import { warnDeprecated } from "../utils/deprecation";
@@ -233,7 +233,9 @@ export class Vowel {
       this.context = config.initialContext;
       console.log('📝 [VowelClient] Initial context set from config:', config.initialContext);
     }
-    this.toolManager = new ToolManager();
+    this.toolManager = new ToolManager({
+      enableNavigation: !!config.navigationAdapter || !!config.router,
+    });
     this.stateManager = new StateManager();
     
     // Initialize AudioManager with speaking state callback

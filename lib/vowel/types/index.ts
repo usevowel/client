@@ -77,5 +77,8 @@ export type {
 // Export floating action pill types
 export type {
   FloatingActionPillConfig,
+} from '../ui/FloatingActionPillManager';
+
+export type {
   FloatingActionPillProps,
 } from '../ui/FloatingActionPill';

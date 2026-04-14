@@ -54,4 +54,28 @@ describe('ToolManager', () => {
       metadata: {},
     })
   })
+
+  test('registers navigation tools by default', () => {
+    const toolManager = new ToolManager()
+    const names = toolManager.getToolNames()
+    expect(names).toContain('navigate')
+    expect(names).toContain('getCurrentPageContext')
+    expect(names).toContain('listRoutes')
+  })
+
+  test('skips navigation tools when enableNavigation is false', () => {
+    const toolManager = new ToolManager({ enableNavigation: false })
+    const names = toolManager.getToolNames()
+    expect(names).not.toContain('navigate')
+    expect(names).not.toContain('getCurrentPageContext')
+    expect(names).not.toContain('listRoutes')
+  })
+
+  test('registers navigation tools when enableNavigation is true', () => {
+    const toolManager = new ToolManager({ enableNavigation: true })
+    const names = toolManager.getToolNames()
+    expect(names).toContain('navigate')
+    expect(names).toContain('getCurrentPageContext')
+    expect(names).toContain('listRoutes')
+  })
 })

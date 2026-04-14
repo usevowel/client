@@ -18,7 +18,7 @@ export {
   FloatingMicButton,
   Modal,
   VowelSettingsModal,
-} from "./lib/vowel/components";
+} from "./lib/vowel/components/index.js";
 
 export type {
   VowelProviderProps,
@@ -30,7 +30,7 @@ export type {
   FloatingMicButtonState,
   ModalProps,
   VowelSettingsModalProps,
-} from "./lib/vowel/components";
+} from "./lib/vowel/components/index.js";
 
 // Floating Cursor (React Native Components)
 export {
@@ -38,13 +38,13 @@ export {
   FloatingCursorRenderer,
   useFloatingCursor,
   useFloatingCursorOptional,
-} from "./lib/vowel/components";
+} from "./lib/vowel/components/index.js";
 
 export type {
   FloatingCursorContextType,
   FloatingCursorProviderProps,
   FloatingCursorRendererProps,
-} from "./lib/vowel/components";
+} from "./lib/vowel/components/index.js";
 
 // Re-export core types that React components might need
 export type {
@@ -53,7 +53,7 @@ export type {
   VowelVoiceConfig,
   VowelActionParameter,
   ActionHandler,
-} from "./lib/vowel/types";
+} from "./lib/vowel/types/index.js";
 
 // Re-export version from version module for consistency
-export { VOWEL_VERSION as VERSION } from "./lib/vowel/version";
+export { VOWEL_VERSION as VERSION } from "./lib/vowel/version.js";

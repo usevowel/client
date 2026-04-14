@@ -16,7 +16,7 @@ export type {
 } from "./SessionManager";
 
 export { ToolManager } from "./ToolManager";
-export type { ToolContext, ToolHandler, Tool, ToolResult } from "./ToolManager";
+export type { ToolContext, ToolHandler, Tool, ToolResult, ToolManagerOptions } from "./ToolManager";
 
 export { VADManager } from "./VADManager";
 export type { VADConfig } from "./VADManager";

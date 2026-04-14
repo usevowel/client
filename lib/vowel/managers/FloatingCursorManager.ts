@@ -33,7 +33,6 @@
  * ```
  */
 
-import { registerFloatingCursorWebComponent } from '../components/web-components/FloatingCursorWebComponent';
 import type { FloatingCursorConfig, FloatingCursorUpdate } from '../types';
 import type { FloatingCursorContextType } from '../components/FloatingCursorProvider';
 
@@ -92,7 +91,7 @@ export class FloatingCursorManager {
       console.log('🎯 [FloatingCursorManager] Initialized in web-component mode');
       
       if (this.isEnabled) {
-        this.initializeCursor();
+        void this.initializeCursor();
       }
     }
 
@@ -108,7 +107,7 @@ export class FloatingCursorManager {
   /**
    * Initialize the floating cursor web component (web-component mode only)
    */
-  private initializeCursor(): void {
+  private async initializeCursor(): Promise<void> {
     if (this.mode !== 'web-component') {
       console.warn('🎯 [FloatingCursorManager] initializeCursor called in react-context mode');
       return;
@@ -119,7 +118,9 @@ export class FloatingCursorManager {
       return;
     }
 
-    // Ensure web component is registered
+    // Ensure web component is registered. This is loaded lazily so importing the
+    // core client does not require React or the web-component adapter.
+    const { registerFloatingCursorWebComponent } = await import('../components/web-components/FloatingCursorWebComponent');
     registerFloatingCursorWebComponent();
 
     // Create the web component element
@@ -208,7 +209,7 @@ export class FloatingCursorManager {
     if (this.mode === 'react-context' && this.reactContext) {
       this.reactContext.enable();
     } else if (this.mode === 'web-component' && !this.cursorElement) {
-      this.initializeCursor();
+      void this.initializeCursor();
     }
 
     console.log('🎯 [FloatingCursorManager] Enabled');
@@ -761,4 +762,3 @@ export class FloatingCursorManager {
     console.log('🎯 [FloatingCursorManager] Destroyed');
   }
 }
-
