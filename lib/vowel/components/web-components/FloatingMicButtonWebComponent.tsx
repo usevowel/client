@@ -30,7 +30,6 @@ const FloatingMicButtonWebComponent = r2wc(FloatingMicButton, {
     zIndex: "number",
     title: "string",
     inline: "boolean",
-    showActionIcon: "boolean",
   },
 });
 

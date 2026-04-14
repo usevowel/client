@@ -22,7 +22,7 @@
 import { useState, useRef, useEffect } from "react";
 import { X } from "lucide-react";
 import { useVowel } from "./VowelProviderSimple";
-import { FloatingMicButton } from "./FloatingMicButton";
+import { FloatingAgentPill, type MuteMode } from "./FloatingAgentPill";
 import { VoiceNagWrapper, type VoiceNagWrapperProps } from "./VoiceNagWrapper";
 import { TermsPrivacyModal, type TermsPrivacyModalProps } from "./TermsPrivacyModal";
 import { FloatingCursorRenderer } from "./FloatingCursorRenderer";
@@ -179,7 +179,26 @@ export function VowelAgent({
   const [showPanel, setShowPanel] = useState(false);
   const [isAttemptingConnection, setIsAttemptingConnection] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
+  const [muteMode, setMuteMode] = useState<MuteMode>('active');
   const connectionBlockedRef = useRef(false);
+
+  // Sync mute state with client when it becomes available
+  useEffect(() => {
+    if (!client) return;
+
+    // Check current mute states and sync our UI state
+    const isAIAudioMuted = client.isAIAudioMuted();
+    const isMicMuted = client.isMicrophoneMuted();
+
+    if (isAIAudioMuted && !isMicMuted) {
+      setMuteMode('ai-muted');
+    } else if (!isAIAudioMuted && isMicMuted) {
+      setMuteMode('user-muted');
+    } else if (!isAIAudioMuted && !isMicMuted) {
+      setMuteMode('active');
+    }
+    // If both are muted, default to ai-muted state
+  }, [client]);
 
   // Track error state and show modal when error occurs
   useEffect(() => {
@@ -312,11 +331,50 @@ export function VowelAgent({
   const handleTermsAccepted = () => {
     console.log("[VowelAgent] Terms accepted - proceeding with connection");
     onTermsAccept?.();
-    
+
     // Trigger connection after acceptance
     setTimeout(() => {
       proceedWithConnection();
     }, 300);
+  };
+
+  /**
+   * Handle mute button click - cycle through mute modes
+   * Active → AI Muted → User Muted → Active
+   */
+  const handleMuteCycle = () => {
+    if (!client) return;
+
+    const nextMode: Record<MuteMode, MuteMode> = {
+      'active': 'ai-muted',
+      'ai-muted': 'user-muted',
+      'user-muted': 'active',
+    };
+
+    const newMode = nextMode[muteMode];
+    setMuteMode(newMode);
+
+    // Apply mute settings based on new mode
+    switch (newMode) {
+      case 'ai-muted':
+        // Mute AI audio, keep user mic active
+        client.setAIAudioMuted(true);
+        client.unmuteMicrophone();
+        console.log('[VowelAgent] Mute mode: AI audio muted');
+        break;
+      case 'user-muted':
+        // Unmute AI audio, mute user mic
+        client.setAIAudioMuted(false);
+        client.muteMicrophone();
+        console.log('[VowelAgent] Mute mode: User microphone muted');
+        break;
+      case 'active':
+        // Unmute both
+        client.setAIAudioMuted(false);
+        client.unmuteMicrophone();
+        console.log('[VowelAgent] Mute mode: Both active');
+        break;
+    }
   };
 
   // Calculate transcript panel position based on button position
@@ -475,7 +533,7 @@ export function VowelAgent({
         onDismiss={onNagDismiss}
         isConnected={state.isConnected}
       >
-        <FloatingMicButton
+        <FloatingAgentPill
           isConnected={state.isConnected}
           isConnecting={state.isConnecting}
           isDisconnecting={state.isDisconnecting}
@@ -487,12 +545,12 @@ export function VowelAgent({
           isPaused={state.status === "Paused"}
           isHibernated={state.isHibernated}
           hasError={!!state.error}
-          onClick={handleToggleSession}
-          title={state.error ? "Error occurred - click to reconnect" : (state.isConnected ? "Stop voice session" : "Start voice session")}
-          inline={true} // Use inline mode - parent handles positioning
-          showActionIcon={true} // Show action (what will happen on click) instead of current state
-          showSettings={true} // Show settings button (hover to reveal)
-          client={client} // Pass client for settings modal
+          muteMode={muteMode}
+          onMainClick={handleToggleSession}
+          onMuteClick={handleMuteCycle}
+          mainButtonTitle={state.error ? "Error occurred - click to reconnect" : (state.isConnected ? "Stop voice session" : "Start voice session")}
+          inline={true}
+          client={client}
         />
       </VoiceNagWrapper>
 

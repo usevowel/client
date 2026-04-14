@@ -1,24 +1,38 @@
 /**
- * @fileoverview Floating Microphone Button Component - Minimal Version
+ * @fileoverview Floating Agent Pill Component
  *
- * A minimal floating microphone button displayed in controlled tabs, showing the current
- * voice session state with animations. This is the simplified version that works alongside
- * FloatingAgentPill for a minimal footprint when the full pill interface is not needed.
+ * A floating pill-shaped interface for the voice agent that displays session state
+ * and provides controls including a 3-mode mute button and settings.
+ * Replaces the microphone-focused FloatingMicButton with a speaking face icon.
  *
- * For the full interface with mute controls and settings, use FloatingAgentPill instead.
+ * Features:
+ * - Pill-shaped floating design (more modern than square button)
+ * - Speaking face icon (instead of microphone)
+ * - 3-mode mute button: Active → AI Muted → User Muted
+ * - Settings button
+ * - State-based gradient backgrounds
+ * - Smooth animations and transitions
  *
  * @module @vowel.to/client/components
  * @author vowel.to
  * @license Proprietary
  */
 
-import { Mic, MicOff, Loader2, Sparkles, Brain, Wrench, Moon, Pause } from 'lucide-react';
+import { useState } from 'react';
+import { User, Volume2, VolumeX, MicOff, Settings, Loader2, Sparkles, Brain, Wrench, Moon, Pause } from 'lucide-react';
 import { cn, VOWEL_UI_SCOPE_CLASS } from '../utils';
+import { VowelSettingsModal, type VowelSettingsModalMock } from './VowelSettingsModal';
+import type { Vowel } from '../core/VowelClient';
+
+/**
+ * Mute mode for the pill
+ */
+export type MuteMode = 'active' | 'ai-muted' | 'user-muted';
 
 /**
  * Voice session state (subset used for UI display)
  */
-export interface FloatingMicButtonState {
+export interface FloatingAgentPillState {
   /** Whether voice session is connected */
   isConnected?: boolean;
 
@@ -54,9 +68,9 @@ export interface FloatingMicButtonState {
 }
 
 /**
- * FloatingMicButton component props
+ * FloatingAgentPill component props
  */
-export interface FloatingMicButtonProps extends FloatingMicButtonState {
+export interface FloatingAgentPillProps extends FloatingAgentPillState {
   /** Custom className */
   className?: string;
 
@@ -66,32 +80,51 @@ export interface FloatingMicButtonProps extends FloatingMicButtonState {
   /** Z-index for positioning */
   zIndex?: number;
 
-  /** Click handler */
-  onClick?: () => void;
-
-  /** Button title/tooltip */
-  title?: string;
-
   /** If true, don't apply fixed positioning (for inline use) */
   inline?: boolean;
+
+  /** Current mute mode */
+  muteMode?: MuteMode;
+
+  /** Click handler for main button (toggles session) */
+  onMainClick?: () => void;
+
+  /** Click handler for mute button (cycles mute modes) */
+  onMuteClick?: () => void;
+
+  /** Click handler for settings button (optional - if not provided, modal is managed internally) */
+  onSettingsClick?: () => void;
+
+  /** Button title/tooltip for main button */
+  mainButtonTitle?: string;
+
+  /** Optional Vowel client instance (for settings modal - will use useVowel() hook if not provided) */
+  client?: Vowel | null;
+
+  /** @internal Mock data for settings modal in Storybook (not part of public API) */
+  __mockSettings?: VowelSettingsModalMock;
 }
 
 /**
- * FloatingMicButton Component - Minimal Version
+ * FloatingAgentPill Component
  *
- * Displays a minimal floating microphone button that shows voice session state.
- * For full controls (mute, settings), use FloatingAgentPill instead.
+ * Displays a floating pill interface for voice session control with:
+ * - Speaking face icon showing current state
+ * - 3-mode mute button (Active → AI Muted → User Muted)
+ * - Settings button
  *
  * @example
  * ```tsx
- * <FloatingMicButton
+ * <FloatingAgentPill
  *   isConnected={true}
  *   isUserSpeaking={false}
- *   onClick={handleStop}
+ *   muteMode="active"
+ *   onMainClick={handleToggleSession}
+ *   onMuteClick={handleMuteCycle}
  * />
  * ```
  */
-export function FloatingMicButton({
+export function FloatingAgentPill({
   isConnected = false,
   isConnecting = false,
   isDisconnecting = false,
@@ -106,20 +139,37 @@ export function FloatingMicButton({
   className,
   position = 'bottom-right',
   zIndex = 999998,
-  onClick,
-  title = 'Toggle voice session',
   inline = false,
-}: FloatingMicButtonProps) {
+  muteMode = 'active',
+  onMainClick,
+  onMuteClick,
+  onSettingsClick,
+  mainButtonTitle = 'Toggle voice session',
+  client,
+  __mockSettings,
+}: FloatingAgentPillProps) {
+  // Internal settings modal state (only used if onSettingsClick is not provided)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Handle settings click - use callback if provided, otherwise manage internally
+  const handleSettingsClick = () => {
+    if (onSettingsClick) {
+      onSettingsClick();
+    } else {
+      setIsSettingsOpen(true);
+    }
+  };
+
   // Determine button state and styling
   const getButtonState = () => {
     // Error state takes priority over everything
     if (hasError) return 'error';
-    // Disconnecting state takes priority (show immediately when disconnect starts)
+    // Disconnecting state takes priority
     if (isDisconnecting) return 'disconnecting';
     if (isResuming) return 'resuming';
     if (isConnecting) return 'connecting';
     if (isPaused) return 'paused';
-    // Hibernation state - show sleeping icon
+    // Hibernation state
     if (isHibernated) return 'hibernated';
     if (isAiSpeaking) return 'ai-speaking';
     if (isToolExecuting) return 'tool-executing';
@@ -139,62 +189,40 @@ export function FloatingMicButton({
     'top-left': 'top-6 left-6',
   };
 
-  // Get inline background style for all states (hardcoded gradients)
+  // Get background style based on state
   const getBackgroundStyle = () => {
     switch (buttonState) {
       case 'error':
-        return {
-          background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' };
       case 'disconnecting':
-        return {
-          background: 'linear-gradient(135deg, #4a5568 0%, #1a202c 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #4a5568 0%, #1a202c 100%)' };
       case 'resuming':
         return {
           background: 'linear-gradient(135deg, #3b82f6 0%, #6366f1 50%, #ec4899 100%)',
-          backgroundSize: '400% 400%'
+          backgroundSize: '400% 400%',
         };
       case 'connecting':
-        return {
-          background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #fbbf24 0%, #f97316 100%)' };
       case 'paused':
-        return {
-          background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #64748b 0%, #475569 100%)' };
       case 'hibernated':
-        return {
-          background: 'linear-gradient(135deg, #4c51bf 0%, #6b46c1 50%, #805ad5 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #4c51bf 0%, #6b46c1 50%, #805ad5 100%)' };
       case 'user-speaking':
-        return {
-          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' };
       case 'tool-executing':
-        return {
-          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' };
       case 'ai-thinking':
-        return {
-          background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #eab308 0%, #ca8a04 100%)' };
       case 'ai-speaking':
-        return {
-          background: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)' };
       case 'connected':
-        return {
-          background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)' };
       default: // disconnected
-        return {
-          background: 'linear-gradient(135deg, #4a5568 0%, #1a202c 100%)'
-        };
+        return { background: 'linear-gradient(135deg, #4a5568 0%, #1a202c 100%)' };
     }
   };
 
-  // Additional classes for animations (pulse, gradient shift)
+  // Animation class based on state
   const getAnimationClass = () => {
     switch (buttonState) {
       case 'error':
@@ -216,8 +244,6 @@ export function FloatingMicButton({
     switch (buttonState) {
       case 'error':
         return 'border-red-300/50';
-      case 'disconnecting':
-        return 'border-white/50';
       case 'resuming':
         return 'border-blue-300/50';
       case 'connecting':
@@ -246,8 +272,6 @@ export function FloatingMicButton({
     switch (buttonState) {
       case 'error':
         return 'shadow-[0_8px_24px_rgba(239,68,68,0.5)]';
-      case 'disconnecting':
-        return 'shadow-[0_8px_24px_rgba(0,0,0,0.3)]';
       case 'resuming':
       case 'user-speaking':
         return 'shadow-[0_8px_24px_rgba(59,130,246,0.5)]';
@@ -269,60 +293,79 @@ export function FloatingMicButton({
     }
   };
 
-  // Icon to show based on state
-  const getIcon = () => {
-    // Error state: MicOff icon
+  // Get main icon based on state (user/speaking variations)
+  const getMainIcon = () => {
+    // Error state
     if (hasError) {
-      return <MicOff className="w-6 h-6" />;
-    }
-
-    // Disconnecting state: Spinner
-    if (isDisconnecting) {
-      return <Loader2 className="w-6 h-6 animate-spin" />;
+      return <User className="w-6 h-6 opacity-50" />;
     }
 
     // Loading states
-    if (isConnecting || isResuming) {
+    if (isConnecting || isDisconnecting || isResuming) {
       return <Loader2 className="w-6 h-6 animate-spin" />;
     }
 
-    // Paused state: Pause icon
+    // Paused state
     if (isPaused) {
       return <Pause className="w-6 h-6" />;
     }
 
-    // Hibernated state: Moon icon
+    // Hibernated state
     if (isHibernated) {
       return <Moon className="w-6 h-6" />;
     }
 
-    // AI speaking: Sparkles
+    // AI speaking: animated/sparkly user
     if (isAiSpeaking) {
       return <Sparkles className="w-6 h-6" />;
     }
 
-    // Tool executing: Wrench
+    // Tool executing: wrench
     if (isToolExecuting) {
       return <Wrench className="w-6 h-6" />;
     }
 
-    // AI thinking: Brain
+    // AI thinking: brain
     if (isAiThinking) {
       return <Brain className="w-6 h-6" />;
     }
 
-    // User speaking: Mic
+    // User speaking: active user icon
     if (isUserSpeaking) {
-      return <Mic className="w-6 h-6" />;
+      return <User className="w-6 h-6" />;
     }
 
-    // Default: Mic when connected, MicOff when disconnected
-    return isConnected
-      ? <Mic className="w-6 h-6" />
-      : <MicOff className="w-6 h-6" />;
+    // Default user icon
+    return <User className="w-6 h-6" />;
   };
 
-  // Show ping effect for speaking states and error state
+  // Get mute icon based on mode
+  const getMuteIcon = () => {
+    switch (muteMode) {
+      case 'ai-muted':
+        return <VolumeX className="w-4 h-4" />;
+      case 'user-muted':
+        return <MicOff className="w-4 h-4" />;
+      case 'active':
+      default:
+        return <Volume2 className="w-4 h-4" />;
+    }
+  };
+
+  // Get mute button tooltip
+  const getMuteTooltip = () => {
+    switch (muteMode) {
+      case 'ai-muted':
+        return 'AI audio muted (click to cycle)';
+      case 'user-muted':
+        return 'Microphone muted (click to cycle)';
+      case 'active':
+      default:
+        return 'Audio active (click to cycle mute modes)';
+    }
+  };
+
+  // Show ping effect for speaking states and error
   const showPing = isUserSpeaking || isAiSpeaking || hasError;
 
   return (
@@ -362,14 +405,10 @@ export function FloatingMicButton({
         )}
         style={!inline ? { zIndex } : undefined}
       >
-        {/* Main microphone button */}
-        <button
-          onClick={onClick}
-          title={title}
-          aria-label={title}
+        {/* Main pill container */}
+        <div
           className={cn(
-            'relative w-14 h-14 rounded-xl border-2',
-            'flex items-center justify-center',
+            'flex items-center gap-2 px-4 py-3 rounded-full border-2',
             'text-white cursor-pointer',
             'transition-all duration-300 ease-in-out',
             'hover:scale-105 hover:shadow-[0_12px_32px_rgba(0,0,0,0.4)]',
@@ -384,25 +423,78 @@ export function FloatingMicButton({
           {/* Ping effect for speaking states */}
           {showPing && (
             <span
-              className="absolute inset-0 rounded-xl bg-current opacity-40 vowel-animate-ping-effect pointer-events-none"
+              className="absolute inset-0 rounded-full bg-current opacity-40 vowel-animate-ping-effect pointer-events-none"
             />
           )}
 
           {/* Gradient overlay */}
           <div
             className={cn(
-              'absolute inset-0 rounded-xl',
+              'absolute inset-0 rounded-full',
               'bg-gradient-to-br from-white/10 to-transparent',
               'transition-opacity duration-300 pointer-events-none'
             )}
           />
 
-          {/* Icon */}
-          <div className="relative z-10">
-            {getIcon()}
-          </div>
-        </button>
+          {/* Main button (face icon) */}
+          <button
+            onClick={onMainClick}
+            title={mainButtonTitle}
+            aria-label={mainButtonTitle}
+            className="relative z-10 flex items-center justify-center w-8 h-8"
+          >
+            {getMainIcon()}
+          </button>
+
+          {/* Divider */}
+          <div className="relative z-10 w-px h-6 bg-white/30" />
+
+          {/* Mute button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onMuteClick?.();
+            }}
+            title={getMuteTooltip()}
+            aria-label={getMuteTooltip()}
+            className={cn(
+              'relative z-10 flex items-center justify-center w-8 h-8 rounded-full',
+              'transition-all duration-200',
+              'hover:bg-white/20',
+              muteMode !== 'active' && 'bg-white/20'
+            )}
+          >
+            {getMuteIcon()}
+          </button>
+
+          {/* Settings button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleSettingsClick();
+            }}
+            title="Settings"
+            aria-label="Settings"
+            className={cn(
+              'relative z-10 flex items-center justify-center w-8 h-8 rounded-full',
+              'transition-all duration-200',
+              'hover:bg-white/20'
+            )}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </div>
       </div>
+
+      {/* Settings Modal - only show if managing internally (no onSettingsClick provided) */}
+      {!onSettingsClick && (
+        <VowelSettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          client={client}
+          __mock={__mockSettings}
+        />
+      )}
     </>
   );
 }

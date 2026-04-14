@@ -18,5 +18,6 @@ export { FloatingCursorComponent, type FloatingCursorComponentProps } from "./Fl
 export { ControlledBanner, type ControlledBannerProps, type VoiceSessionState } from "./ControlledBanner"; // Top banner with mesh gradient
 export { ControlledByVowelFrame, type ControlledByVowelFrameProps } from "./ControlledByVowelFrame"; // Full page border frame
 export { FloatingMicButton, type FloatingMicButtonProps, type FloatingMicButtonState } from "./FloatingMicButton";
+export { FloatingAgentPill, type FloatingAgentPillProps, type FloatingAgentPillState, type MuteMode } from "./FloatingAgentPill";
 export { Modal, type ModalProps } from "./Modal";
 export { VowelSettingsModal, type VowelSettingsModalProps } from "./VowelSettingsModal";

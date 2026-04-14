@@ -47,6 +47,8 @@ interface AudioRefs {
   ttsLoopbackStream: MediaStream | null; // TTS audio from CLIENT receiver side
   loopbackAudioElement: HTMLAudioElement | null;
   mediaStreamDestination: MediaStreamAudioDestinationNode | null;
+  // Output muting state
+  outputMuted: boolean;
 }
 
 /**
@@ -79,6 +81,8 @@ export class AudioManager {
     ttsLoopbackStream: null, // TTS from CLIENT receiver
     loopbackAudioElement: null,
     mediaStreamDestination: null,
+    // Output muting state
+    outputMuted: false,
   };
 
   private nextStartTime = 0;
@@ -1310,6 +1314,7 @@ export class AudioManager {
     this.clientVADAudioBuffer = []; // Clear VAD audio buffer
     this.rollingAudioBuffer = []; // Clear rolling buffer
     this.isCurrentlySpeaking = false; // Reset speaking state
+    this.refs.outputMuted = false; // Reset output mute state
     console.log("✅ Audio cleanup complete");
   }
 
@@ -1367,6 +1372,27 @@ export class AudioManager {
    */
   isMutedState(): boolean {
     return this.isMuted;
+  }
+
+  /**
+   * Mute/unmute AI audio output (what you hear from the AI)
+   * Controls the output gain node to silence AI responses
+   * @param muted - true to mute AI audio, false to unmute
+   */
+  setOutputMuted(muted: boolean): void {
+    if (this.refs.outputNode) {
+      this.refs.outputNode.gain.value = muted ? 0 : 1;
+    }
+    this.refs.outputMuted = muted;
+    console.log(`🔇 [AudioManager] AI audio output ${muted ? 'muted' : 'unmuted'}`);
+  }
+
+  /**
+   * Check if AI audio output is muted
+   * @returns true if AI audio is muted, false otherwise
+   */
+  isOutputMuted(): boolean {
+    return this.refs.outputMuted;
   }
   
   /**

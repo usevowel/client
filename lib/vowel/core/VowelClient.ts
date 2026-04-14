@@ -1493,6 +1493,60 @@ export class Vowel {
   }
 
   /**
+   * Mute/unmute AI audio output (what you hear from the AI)
+   * This controls the volume of AI responses without affecting the session state
+   * @param muted - true to mute AI audio, false to unmute
+   * 
+   * @example
+   * ```ts
+   * // Mute AI audio (captions still visible, but no sound)
+   * vowel.setAIAudioMuted(true);
+   * 
+   * // Unmute AI audio
+   * vowel.setAIAudioMuted(false);
+   * ```
+   */
+  setAIAudioMuted(muted: boolean): void {
+    this.audioManager.setOutputMuted(muted);
+  }
+
+  /**
+   * Check if AI audio output is muted
+   * @returns true if AI audio is muted, false otherwise
+   */
+  isAIAudioMuted(): boolean {
+    return this.audioManager.isOutputMuted();
+  }
+
+  /**
+   * Mute microphone input without pausing the session
+   * This stops sending audio to the server while keeping the connection active
+   * Unlike pauseSession(), this does not change the session status
+   */
+  muteMicrophone(): void {
+    this.audioManager.setMuted(true);
+    console.log("🎤 Microphone muted (session still active)");
+  }
+
+  /**
+   * Unmute microphone input without resuming the session
+   * This resumes sending audio to the server
+   * Unlike resumeSession(), this does not change the session status
+   */
+  unmuteMicrophone(): void {
+    this.audioManager.setMuted(false);
+    console.log("🎤 Microphone unmuted");
+  }
+
+  /**
+   * Check if microphone is muted
+   * @returns true if microphone is muted, false otherwise
+   */
+  isMicrophoneMuted(): boolean {
+    return this.audioManager.isMutedState();
+  }
+
+  /**
    * Toggle session on/off
    */
   async toggleSession(): Promise<void> {

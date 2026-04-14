@@ -5,7 +5,6 @@
  */
 
 import type { Meta, StoryObj } from '@storybook/react';
-import { action } from '@storybook/addon-actions';
 import { FloatingMicButton } from '../FloatingMicButton';
 
 const meta: Meta<typeof FloatingMicButton> = {
@@ -28,38 +27,8 @@ const meta: Meta<typeof FloatingMicButton> = {
     inline: {
       control: 'boolean',
     },
-    showActionIcon: {
-      control: 'boolean',
-    },
-    showSettings: {
-      control: 'boolean',
-      description: 'Show settings button (appears on hover)',
-    },
-    useInternalModal: {
-      control: 'boolean',
-      description: 'Use internal modal management (opens modal on click). If false, only triggers onSettingsClick action.',
-      table: {
-        category: 'Storybook Controls',
-      },
-    },
-  } as any, // Include Storybook-only controls
-  args: {
-    showSettings: true,
-    useInternalModal: true,
   } as any,
   render: (args: any) => {
-    // Extract useInternalModal from args (Storybook-only control, not a component prop)
-    const { useInternalModal, ...restArgs } = args;
-    
-    // If useInternalModal is true (default), don't pass onSettingsClick (modal opens internally)
-    // If false, pass onSettingsClick action handler (only action fires, no modal)
-    const props = useInternalModal !== false
-      ? restArgs // Modal opens internally
-      : {
-          ...restArgs,
-          onSettingsClick: action('onSettingsClick'), // Only action, no modal
-        };
-    
     return (
       <>
         <style>{`
@@ -71,15 +40,15 @@ const meta: Meta<typeof FloatingMicButton> = {
             opacity: 0 !important;
           }
         `}</style>
-        <div style={{ 
-          minHeight: '400px', 
-          minWidth: '400px', 
-          position: 'relative', 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          minHeight: '400px',
+          minWidth: '400px',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <FloatingMicButton {...props} />
+          <FloatingMicButton {...args} />
         </div>
       </>
     );
@@ -88,18 +57,6 @@ const meta: Meta<typeof FloatingMicButton> = {
 
 export default meta;
 type Story = StoryObj<typeof FloatingMicButton>;
-
-// Mock settings data for Storybook
-const mockSettings = {
-  devices: [
-    { deviceId: 'device-1', kind: 'audioinput', label: 'Built-in Microphone', groupId: 'group-1' } as MediaDeviceInfo,
-    { deviceId: 'device-2', kind: 'audioinput', label: 'USB Headset Microphone', groupId: 'group-2' } as MediaDeviceInfo,
-    { deviceId: 'device-3', kind: 'audioinput', label: 'Blue Yeti USB Microphone', groupId: 'group-3' } as MediaDeviceInfo,
-  ],
-  selectedDeviceId: 'device-1',
-  currentDeviceLabel: 'Built-in Microphone',
-  isLoading: false,
-};
 
 /**
  * Disconnected state - microphone is off
@@ -114,9 +71,6 @@ export const Disconnected: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -133,9 +87,6 @@ export const Connecting: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -152,9 +103,6 @@ export const Disconnecting: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -171,9 +119,6 @@ export const ConnectedIdle: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -190,9 +135,6 @@ export const UserSpeaking: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -209,9 +151,6 @@ export const AIThinking: Story = {
     isAiThinking: true,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -228,9 +167,6 @@ export const AISpeaking: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -247,9 +183,6 @@ export const Resuming: Story = {
     isAiThinking: false,
     isResuming: true,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -267,9 +200,6 @@ export const Paused: Story = {
     isResuming: false,
     isPaused: true,
     inline: true,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -286,9 +216,6 @@ export const WithActionIcon: Story = {
     isAiThinking: false,
     isResuming: false,
     inline: true,
-    showActionIcon: true,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
 };
 
@@ -307,9 +234,6 @@ export const PositionedBottomRight: Story = {
     isResuming: false,
     position: 'bottom-right',
     inline: false,
-    showActionIcon: false,
-    showSettings: true,
-    __mockSettings: mockSettings,
   },
   parameters: {
     layout: 'fullscreen',
@@ -377,8 +301,6 @@ export const PositionedBottomLeft: Story = {
     isResuming: false,
     position: 'bottom-left',
     inline: false,
-    showActionIcon: false,
-    showSettings: true,
   },
   parameters: {
     layout: 'fullscreen',
@@ -435,8 +357,6 @@ export const PositionedTopRight: Story = {
     isResuming: false,
     position: 'top-right',
     inline: false,
-    showActionIcon: false,
-    showSettings: true,
   },
   parameters: {
     layout: 'fullscreen',
@@ -493,8 +413,6 @@ export const PositionedTopLeft: Story = {
     isResuming: false,
     position: 'top-left',
     inline: false,
-    showActionIcon: false,
-    showSettings: true,
   },
   parameters: {
     layout: 'fullscreen',
