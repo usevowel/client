@@ -120,28 +120,6 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         });
       }
 
-      if (event.type === 'response.created') {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.RESPONSE_CREATED,
-          payload: {
-            responseId: event?.response?.id,
-            response: event?.response,
-          },
-          rawMessage: event,
-        });
-      }
-
-      if (event.type === 'response.done') {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.RESPONSE_DONE,
-          payload: {
-            responseId: event?.response?.id,
-            response: event?.response,
-            usage: event?.response?.usage,
-          },
-          rawMessage: event,
-        });
-      }
       if (event.type === 'response.cancelled') {
         this.callbacks.onMessage?.({
           type: RealtimeMessageType.RESPONSE_CANCELLED,

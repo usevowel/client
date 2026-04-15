@@ -48,54 +48,35 @@
 // Import styles (will be auto-injected via JavaScript, also available as separate CSS file)
 import './lib/vowel/styles/styles.css';
 
-import r2wc from "@r2wc/react-to-web-component";
 import { VowelWebComponentWrapper } from "./lib/vowel/components/VowelWebComponentWrapper";
 
-// NOTE: Navigation listener and web components are now lazy-loaded on demand in VowelWebComponentWrapper
-// This improves initial script parsing and time-to-interactive by deferring non-critical code
+let VowelVoiceWidget: CustomElementConstructor | undefined;
 
-/**
- * Convert React component to Web Component using r2wc.
- *
- * `r2wc` creates a class that extends HTMLElement, so defer creation when the
- * module is imported in SSR/Node environments where HTMLElement is unavailable.
- */
-function createVowelVoiceWidget(): CustomElementConstructor | undefined {
+async function createVowelVoiceWidget(): Promise<CustomElementConstructor | undefined> {
   if (typeof HTMLElement === "undefined") {
     return undefined;
   }
 
-  return r2wc(VowelWebComponentWrapper, {
-    props: {
-      // Required
-      appId: "string",
-
-      // Initialization
-      initMode: "string", // "auto" (default) | "custom" (use window.registerVowelFactory())
-
-      // Optional configuration
-      preset: "string", // "vanilla" | "controlled" (recommended) | "shopify" (internal only)
-      adapter: "string", // "vanilla" | "shopify" (DEPRECATED - use preset instead)
-      position: "string", // "bottom-right" | "bottom-left" | "top-right" | "top-left"
-      storeUrl: "string", // For internal Shopify preset only
-
-      // UI options
-      showTranscripts: "boolean",
-      buttonColor: "string",
-
-      // Custom actions and configuration
-      customActions: "string", // JSON string of custom actions
-      config: "string", // JSON string of configuration options
-    },
-  });
+  if (!VowelVoiceWidget) {
+    const { default: r2wc } = await import("@r2wc/react-to-web-component");
+    VowelVoiceWidget = r2wc(VowelWebComponentWrapper, {
+      props: {
+        appId: "string",
+        initMode: "string",
+        preset: "string",
+        adapter: "string",
+        position: "string",
+        storeUrl: "string",
+        showTranscripts: "boolean",
+        buttonColor: "string",
+        customActions: "string",
+        config: "string",
+      },
+    });
+  }
+  return VowelVoiceWidget;
 }
 
-export const VowelVoiceWidget = createVowelVoiceWidget();
-
-/**
- * Register the custom element
- * Safe to call multiple times - won't re-register
- */
 export function registerVowelWebComponent() {
   if (typeof window === "undefined" || typeof customElements === "undefined") {
     console.warn(
@@ -104,21 +85,20 @@ export function registerVowelWebComponent() {
     return;
   }
 
-  if (!VowelVoiceWidget) {
-    console.warn("⚠️ [VowelWebComponent] HTMLElement not available");
-    return;
-  }
+  createVowelVoiceWidget().then((wc) => {
+    if (!wc) {
+      console.warn("⚠️ [VowelWebComponent] HTMLElement not available");
+      return;
+    }
 
-  if (!customElements.get("vowel-voice-widget")) {
-    console.log("🎤 [VowelWebComponent] Registering custom element...");
-    customElements.define("vowel-voice-widget", VowelVoiceWidget);
-    console.log("✅ [VowelWebComponent] Custom element registered");
-  } else {
-    console.log("⏭️ [VowelWebComponent] Already registered");
-  }
+    if (!customElements.get("vowel-voice-widget")) {
+      console.log("🎤 [VowelWebComponent] Registering custom element...");
+      customElements.define("vowel-voice-widget", wc);
+      console.log("✅ [VowelWebComponent] Custom element registered");
+    }
+  });
 }
 
-// Auto-register when module loads
 if (typeof window !== "undefined") {
   registerVowelWebComponent();
 }

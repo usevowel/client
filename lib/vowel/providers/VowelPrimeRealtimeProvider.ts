@@ -199,32 +199,7 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
         }
       }
       
-      // Fallback: Listen for response.done directly from transport if turn_done doesn't fire
-      if (event.type === 'response.done') {
-        console.log('[vowel-prime] ⚠️ response.done received via transport_event (fallback):', event);
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.RESPONSE_DONE,
-          payload: { 
-            responseId: event?.response?.id,
-            response: event?.response,
-            usage: event?.response?.usage,
-          },
-          rawMessage: event,
-        });
-      }
-      
-      // Fallback: Listen for response.created directly from transport
-      if (event.type === 'response.created') {
-        console.log('[vowel-prime] ⚠️ response.created received via transport_event (fallback):', event);
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.RESPONSE_CREATED,
-          payload: { 
-            responseId: event?.response?.id,
-            response: event?.response,
-          },
-          rawMessage: event,
-        });
-      }
+
     });
 
     session.on('session.updated', (event: any) => {

@@ -9,26 +9,23 @@
  * @license Proprietary
  */
 
-import r2wc from "@r2wc/react-to-web-component";
 import { VowelInstructions } from "../VowelInstructions";
 
 let VowelInstructionsWebComponent: CustomElementConstructor | undefined;
 
-function getVowelInstructionsWebComponent(): CustomElementConstructor {
-  VowelInstructionsWebComponent ??= r2wc(VowelInstructions, {
-    props: {
-      id: "string",
-      content: "string",
-    },
-  });
-
+async function getVowelInstructionsWebComponent(): Promise<CustomElementConstructor> {
+  if (!VowelInstructionsWebComponent) {
+    const { default: r2wc } = await import("@r2wc/react-to-web-component");
+    VowelInstructionsWebComponent = r2wc(VowelInstructions, {
+      props: {
+        id: "string",
+        content: "string",
+      },
+    });
+  }
   return VowelInstructionsWebComponent;
 }
 
-/**
- * Register the vowel-instructions custom element
- * Safe to call multiple times - won't re-register
- */
 export function registerVowelInstructionsWebComponent() {
   if (typeof window === "undefined" || !window.customElements) {
     console.warn(
@@ -39,20 +36,15 @@ export function registerVowelInstructionsWebComponent() {
 
   if (!window.customElements.get("vowel-instructions")) {
     console.log("📝 [VowelInstructionsWebComponent] Registering custom element...");
-    window.customElements.define("vowel-instructions", getVowelInstructionsWebComponent());
-    console.log("✅ [VowelInstructionsWebComponent] Custom element registered");
+    getVowelInstructionsWebComponent().then((wc) => {
+      window.customElements.define("vowel-instructions", wc);
+      console.log("✅ [VowelInstructionsWebComponent] Custom element registered");
+    });
   } else {
     console.log("⏭️ [VowelInstructionsWebComponent] Already registered");
   }
 }
 
-// Auto-register when module loads (for standalone bundles)
 if (typeof window !== "undefined") {
   registerVowelInstructionsWebComponent();
 }
-
-// Export the web component
-export { VowelInstructionsWebComponent };
-
-
-

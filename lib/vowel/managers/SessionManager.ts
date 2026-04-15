@@ -179,6 +179,10 @@ export class SessionManager {
   private toolFailureCount: Map<string, number> = new Map();
   private maxToolFailures: number = 3;
   
+  // Deduplication: Track processed responseIds to prevent dual inference
+  private processedResponseIds: Set<string> = new Set();
+  private readonly MAX_PROCESSED_RESPONSE_IDS: number = 100; // Prevent memory leaks
+  
   // Timing tracking for initialization
   private initTimings: {
     startTime?: number;
@@ -762,6 +766,27 @@ export class SessionManager {
         case RealtimeMessageType.RESPONSE_CREATED:
           // Response generation started (turn_started) - start thinking state
           // This is when AI actually begins processing/generating a response
+          
+          // DEDUPLICATION: Check if this responseId was already processed
+          const responseId = message.payload?.responseId;
+          if (responseId && this.processedResponseIds.has(responseId)) {
+            console.log(`⚠️ [SessionManager] Ignoring duplicate RESPONSE_CREATED for responseId: ${responseId}`);
+            break;
+          }
+          
+          // Track this responseId to prevent duplicate processing
+          if (responseId) {
+            this.processedResponseIds.add(responseId);
+            // Prevent memory leaks by limiting the size of the set
+            if (this.processedResponseIds.size > this.MAX_PROCESSED_RESPONSE_IDS) {
+              const iterator = this.processedResponseIds.values();
+              const firstId = iterator.next().value as string | undefined;
+              if (firstId) {
+                this.processedResponseIds.delete(firstId);
+              }
+            }
+          }
+          
           this.isResponseInProgress = true;
           
           // Clear interrupt flag so new audio can play
@@ -791,6 +816,14 @@ export class SessionManager {
         case RealtimeMessageType.RESPONSE_DONE:
           // Response generation complete (turn_done) - clear all states
           // Thinking state lasts from turn_started to turn_done
+          
+          // DEDUPLICATION: Check if this responseId was already processed
+          const doneResponseId = message.payload?.responseId;
+          if (doneResponseId && this.processedResponseIds.has(doneResponseId)) {
+            console.log(`⚠️ [SessionManager] Ignoring duplicate RESPONSE_DONE for responseId: ${doneResponseId}`);
+            break;
+          }
+          
           console.log("✅ [SessionManager] ═══════════════════════════════════════");
           console.log("✅ [SessionManager] RESPONSE_DONE received (turn_done)");
           console.log("✅ [SessionManager] Response ID:", message.payload?.responseId);
@@ -1846,6 +1879,9 @@ export class SessionManager {
     this.totalStepCount = 0;
     this.hasReachedStepLimit = false;
     this.toolFailureCount.clear();
+    
+    // Reset deduplication tracking
+    this.processedResponseIds.clear();
 
     try {
       if (this.provider) {

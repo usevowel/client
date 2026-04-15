@@ -420,7 +420,7 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     }
 
 
-    // Function/tool calls
+    // Function/tool calls from OpenAI SDK
     session.on('response.function_call_arguments.done', (event: any) => {
       console.log("🔧 [OpenAI] Function call received:");
       console.log("  Tool Name:", event.name);

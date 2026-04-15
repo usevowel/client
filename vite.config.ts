@@ -287,7 +287,6 @@ export default defineConfig(({ mode }) => {
           return false;
         },
         output: {
-          // Name CSS files predictably for package.json exports
           assetFileNames: (assetInfo) => {
             if (assetInfo.name?.endsWith('.css')) {
               return 'style.css';
