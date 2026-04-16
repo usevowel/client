@@ -26,7 +26,6 @@ import { ToolManager } from "./ToolManager";
 import { AudioManager } from "./AudioManager";
 import { VADManager } from "./VADManager";
 import { EnhancedVADManager } from "./EnhancedVADManager";
-import { registerSimpleVADAdapter } from "../vad";
 import type { TypingSoundManager } from "./TypingSoundManager";
 import type { VoiceSessionState } from "./StateManager";
 import { RealtimeProviderFactory } from "../providers/RealtimeProviderFactory";
@@ -41,7 +40,7 @@ import { resolveConnectionIdentity } from "../utils/connectionIdentity";
  * the user speaking state even if useServerVad config flag is not set.
  * This allows simple VAD in server_vad mode to update button state.
  */
-const ENABLE_SERVER_VAD_UI_UPDATES = false;
+const ENABLE_SERVER_VAD_UI_UPDATES = true;
 const HOSTED_INITIAL_GREETING_DELAY_MS = 150;
 const HOSTED_INITIAL_GREETING_PROVIDERS = new Set<ProviderType>(["openai", "grok"]);
 
@@ -335,7 +334,7 @@ export class SessionManager {
       origin: params.origin,
       config: params.config,
     };
-    
+
     try {
       const response = await fetch(tokenEndpoint, {
         method: "POST",
@@ -1320,6 +1319,7 @@ export class SessionManager {
       };
       
       // Prepare client config to send to server (with resolved defaults)
+      const hiddenConfig = this.getHiddenVoiceConfig();
       const clientConfig = {
         routes: this.config.routes,
         actions: this.config.toolManager.getToolDefinitions(),
@@ -1327,12 +1327,11 @@ export class SessionManager {
         initialGreetingPrompt: this.config.initialGreetingPrompt,
         turnDetectionPreset: this.config.turnDetectionPreset,
         _voiceConfig: {
-          ...this.getHiddenVoiceConfig(),
+          ...hiddenConfig,
           turnDetection: resolvedTurnDetection,
         },
         systemInstructionOverride: instructions, // Server expects this property name (now includes initial context)
       };
-
       let tokenResponse: TokenResponse;
 
       // Check for direct token in _voiceConfig (bypasses token endpoint)
@@ -1678,76 +1677,8 @@ export class SessionManager {
             } else {
               // Server-side VAD mode (server_vad, semantic_vad, disabled) - fallback for non-client_vad modes
               const vadType = this.getHiddenVoiceConfig()?.vadType;
-              
-              // Check if we should enable simple VAD for UI-only updates in server_vad mode
-              const shouldUseSimpleVADForUI = (turnDetectionMode === 'server_vad' || turnDetectionMode === 'semantic_vad') && ENABLE_SERVER_VAD_UI_UPDATES;
-              
-              if (shouldUseSimpleVADForUI) {
-                // Initialize simple VAD for UI button state updates only (no interruptions)
-                console.log(`🎤 Initializing Simple VAD for UI-only updates (server_vad mode)`);
-                
-                // Ensure Simple VAD adapter is registered
-                registerSimpleVADAdapter();
-                
-                // Create EnhancedVADManager with simple-vad adapter for UI-only mode
-                this.enhancedVADManager = new EnhancedVADManager({
-                  mode: 'client_vad', // Use client_vad mode but only for UI updates
-                  clientVAD: {
-                    adapter: 'simple-vad',
-                    autoCommit: false, // Don't auto-commit audio (server handles turn detection)
-                    autoCreateResponse: false, // Don't create responses (server handles this)
-                    config: {
-                      energyThreshold: 0.15,
-                      redemptionFrames: 8,
-                      sampleRate: 16000,
-                      frameDurationMs: 30,
-                    }
-                  },
-                  mediaStream: mediaStream,
-                  onVADReady: () => {
-                    this.initTimings.vadEnd = Date.now();
-                    console.log("✅ Simple VAD initialized for UI-only updates");
-                  },
-                  onVADError: (error) => {
-                    this.initTimings.vadEnd = Date.now();
-                    console.warn("⚠️ Simple VAD initialization failed, continuing without UI updates:", error);
-                    // Session continues without UI VAD - graceful fallback
-                  },
-                });
-                
-                // Initialize EnhancedVADManager
-                await this.enhancedVADManager.initialize();
-                
-                // Pass EnhancedVADManager reference to AudioManager for frame processing
-                this.config.audioManager.setEnhancedVADManager(this.enhancedVADManager);
-                
-                // Set up event listeners for UI-only updates (NO interruptions)
-                this.enhancedVADManager.on('vad:speech:start', (data) => {
-                  console.log("🗣️ [SessionManager] Simple VAD detected speech start (UI-only, no interrupt)");
-                  console.log("  Timestamp:", data.timestamp);
-                  console.log("  Probability:", data.probability);
-                  this.setClientSpeechActive(true, "simple vad start");
-                  
-                  // ONLY update UI state - do NOT interrupt audio or clear states
-                  this.config.onUserSpeakingChange?.(true);
-                });
-                
-                this.enhancedVADManager.on('vad:speech:end', (data) => {
-                  console.log("🔇 [SessionManager] Simple VAD detected speech end (UI-only)");
-                  console.log("  Timestamp:", data.timestamp);
-                  console.log("  Duration:", data.duration);
-                  
-                  // Ignore very short speech segments (likely false positives)
-                  if (data.duration < 100) {
-                    console.log(`⚠️ [SessionManager] Ignoring speech end event - duration too short (${data.duration}ms)`);
-                    return;
-                  }
-                  
-                  // ONLY update UI state - do NOT trigger thinking state or other side effects
-                  this.setClientSpeechActive(false, "simple vad end");
-                  this.config.onUserSpeakingChange?.(false);
-                });
-              } else if (vadType && vadType !== "none") {
+
+              if (vadType && vadType !== "none") {
                 // Client-side VAD explicitly requested - use legacy VADManager for backward compatibility
                 console.log(`🎤 Initializing legacy VADManager with vadType: ${vadType}...`);
                 this.vadManager = new VADManager({
@@ -1792,7 +1723,10 @@ export class SessionManager {
 
                 await this.vadManager.start(mediaStream);
               } else {
-                // No client-side VAD - using server-side VAD only
+                // No client-side VAD - using server-side VAD only.
+                // Speaking state updates come from server speech events
+                // (for example AUDIO_BUFFER_SPEECH_STARTED/STOPPED), not a
+                // client-side UI VAD that could interfere with mic streaming.
                 this.initTimings.vadEnd = Date.now();
                 console.log(`🎤 Using server-side VAD only (turnDetectionMode: ${turnDetectionMode}, vadType: ${vadType ?? 'not set'})`);
               }
