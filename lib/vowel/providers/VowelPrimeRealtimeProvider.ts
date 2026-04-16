@@ -198,6 +198,25 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
           });
         }
       }
+
+      if (event.type === 'input_audio_buffer.speech_started') {
+        console.log('[vowel-prime] 🎤 Speech started (from transport_event)');
+        console.log('  Note: If AI is speaking, this may trigger an interrupt');
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED,
+          payload: {},
+          rawMessage: event,
+        });
+      }
+
+      if (event.type === 'input_audio_buffer.speech_stopped') {
+        console.log('[vowel-prime] 🔇 Speech stopped (from transport_event)');
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED,
+          payload: {},
+          rawMessage: event,
+        });
+      }
       
 
     });
@@ -334,24 +353,6 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
 
     session.on('response.cancelled', (event: any) => {
       console.log('[vowel-prime] 🚫 Response cancelled:', event?.response?.id);
-    });
-
-    // Audio events - Speech detection (VAD)
-    session.on('input_audio_buffer.speech_started', () => {
-      console.log('[vowel-prime] 🎤 Speech started (server VAD detected)');
-      console.log('  Note: If AI is speaking, this may trigger an interrupt');
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED,
-        payload: {},
-      });
-    });
-
-    session.on('input_audio_buffer.speech_stopped', () => {
-      console.log('[vowel-prime] 🔇 Speech stopped');
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED,
-        payload: {},
-      });
     });
 
     // Audio interrupt event (emitted by SDK when user speaks over AI)

@@ -130,6 +130,22 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
           rawMessage: event,
         });
       }
+
+      if (event.type === 'input_audio_buffer.speech_started') {
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED,
+          payload: {},
+          rawMessage: event,
+        });
+      }
+
+      if (event.type === 'input_audio_buffer.speech_stopped') {
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED,
+          payload: {},
+          rawMessage: event,
+        });
+      }
     });
 
     session.on('close', (event?: any) => {
@@ -203,20 +219,6 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
           usage: event?.response?.usage,
         },
         rawMessage: event,
-      });
-    });
-
-    session.on('input_audio_buffer.speech_started', () => {
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED,
-        payload: {},
-      });
-    });
-
-    session.on('input_audio_buffer.speech_stopped', () => {
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED,
-        payload: {},
       });
     });
 
