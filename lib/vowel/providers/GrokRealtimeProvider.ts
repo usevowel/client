@@ -62,7 +62,13 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       return;
     }
 
-    const session = this.session as any;
+    // SDK 0.8+ has strict typing - transport-level events must be listened on transport, not session
+    const session = this.session;
+    const transport = session.transport;
+    
+    if (!transport) {
+      console.warn("⚠️ [grok] Session transport not available");
+    }
 
     session.on('transport_event', (event: any) => {
       console.log('[grok] transport_event:', event.type);
@@ -148,21 +154,22 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
     });
 
-    session.on('close', (event?: any) => {
+    // Transport-level events: close, disconnected, turn_started, turn_done
+    transport?.on('close', (event?: any) => {
       const reason = event?.reason || event?.message || 'Session closed';
       this.isConnected = false;
       this.updateConnectionState("disconnected");
       this.callbacks.onClose?.(reason);
     });
 
-    session.on('disconnected', (event?: any) => {
+    transport?.on('disconnected', (event?: any) => {
       const reason = event?.reason || event?.message || 'Connection disconnected';
       this.isConnected = false;
       this.updateConnectionState("disconnected");
       this.callbacks.onClose?.(reason);
     });
 
-    session.on('turn_started', (event: any) => {
+    transport?.on('turn_started', (event: any) => {
       const responseId = event?.providerData?.response?.id;
       this.callbacks.onMessage?.({
         type: RealtimeMessageType.RESPONSE_CREATED,
@@ -187,7 +194,7 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
     });
 
-    session.on('turn_done', (event: any) => {
+    transport?.on('turn_done', (event: any) => {
       if (event?.response?.output && Array.isArray(event.response.output)) {
         for (const outputItem of event.response.output) {
           if (!outputItem.content || !Array.isArray(outputItem.content)) {
@@ -246,21 +253,8 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       });
     });
 
-    session.on('conversation.item.input_audio_transcription.completed', (event: any) => {
-      if (event.transcript) {
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.TRANSCRIPT_DONE,
-          payload: {
-            transcript: event.transcript,
-            role: 'user',
-            itemId: event.item_id,
-          },
-          rawMessage: event,
-        });
-      }
-    });
-
-    const transport = (session as any).transport;
+    // AI speech transcription (streaming) - transport-level event
+    // CRITICAL: audio_transcript_delta is a transport-level event in SDK 0.8+
     if (transport) {
       transport.on('audio_transcript_delta', (event: any) => {
         this.callbacks.onMessage?.({
@@ -274,8 +268,11 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
           rawMessage: event,
         });
       });
+    } else {
+      console.warn("⚠️ [grok] Session transport not available, cannot listen for transcript events");
     }
 
+    // Error events - session-level
     session.on('error', (error: any) => {
       console.error('[grok] Session error:', error);
 

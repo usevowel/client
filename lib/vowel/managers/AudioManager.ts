@@ -27,7 +27,7 @@ import type { EnhancedVADManager } from "./EnhancedVADManager";
 // @ts-ignore - Vite will handle this
 import audioWorkletCode from './audio-processor.worklet.js?raw';
 import { getOperatingSystem } from "../utils/device-detection";
-import { AUDIO_CAPTURE_CONFIG } from "../types/constants";
+import { AUDIO_CAPTURE_CONFIG, DISABLE_RTC_LOOPBACK } from "../types/constants";
 
 /**
  * Audio context and node references
@@ -684,26 +684,34 @@ export class AudioManager {
     const inputSampleRate = inputContext.sampleRate;
     console.log(`🎤 Input sample rate: ${inputSampleRate}Hz (will resample to ${inputAudioFormat.sampleRate}Hz)`);
     
-    onStatusUpdate?.("Setting up echo cancellation...");
-
-    // CRITICAL: Set up RTC loopback with BOTH mic and TTS streams
-    // This routes everything through a single RTCPeerConnection for proper echo cancellation
-    await this.setupRTCLoopback(this.refs.mediaStream);
-
-    // Use the MIC LOOPBACK stream (SERVER receiver side) as the audio source
-    // This gives us the mic audio AFTER it's passed through RTC and AEC
-    // Architecture: CLIENT sends mic → SERVER receives it → Use SERVER receiver for processing
-    if (this.refs.micLoopbackStream && this.refs.micLoopbackStream.getAudioTracks().length > 0) {
-      console.log("✅ Using SERVER receiver side mic stream for processing (simulating LiveKit server)");
-      this.refs.sourceNode = inputContext.createMediaStreamSource(
-        this.refs.micLoopbackStream
-      );
-    } else {
-      // Fallback: Direct connection if RTC loopback failed
-      console.warn("⚠️ RTC loopback not available, using direct microphone connection");
+    if (DISABLE_RTC_LOOPBACK) {
+      // Direct path: Use microphone stream directly without RTC loopback
+      // RTC loopback is disabled because Brave/Grok have unreliable playback through it
+      console.log("🔇 RTC loopback disabled - using direct microphone path");
       this.refs.sourceNode = inputContext.createMediaStreamSource(
         this.refs.mediaStream
       );
+    } else {
+      // Legacy path: Set up RTC loopback with BOTH mic and TTS streams
+      // This routes everything through a single RTCPeerConnection for proper echo cancellation
+      onStatusUpdate?.("Setting up echo cancellation...");
+      await this.setupRTCLoopback(this.refs.mediaStream);
+
+      // Use the MIC LOOPBACK stream (SERVER receiver side) as the audio source
+      // This gives us the mic audio AFTER it's passed through RTC and AEC
+      // Architecture: CLIENT sends mic → SERVER receives it → Use SERVER receiver for processing
+      if (this.refs.micLoopbackStream && this.refs.micLoopbackStream.getAudioTracks().length > 0) {
+        console.log("✅ Using SERVER receiver side mic stream for processing (simulating LiveKit server)");
+        this.refs.sourceNode = inputContext.createMediaStreamSource(
+          this.refs.micLoopbackStream
+        );
+      } else {
+        // Fallback: Direct connection if RTC loopback failed
+        console.warn("⚠️ RTC loopback not available, using direct microphone connection");
+        this.refs.sourceNode = inputContext.createMediaStreamSource(
+          this.refs.mediaStream
+        );
+      }
     }
     
     this.refs.sourceNode.connect(inputNode);
@@ -968,9 +976,14 @@ export class AudioManager {
 
       const source = this.refs.outputContext.createBufferSource();
       source.buffer = audioBuffer;
-      // CRITICAL: Connect to outputNode, which routes through MediaStreamDestination
-      // and RTC loopback for echo cancellation. Do NOT connect directly to destination.
-      source.connect(this.refs.outputNode!);
+      // Route audio: when RTC loopback is disabled, use direct destination playback
+      // Otherwise connect through outputNode which routes through MediaStreamDestination
+      // and RTC loopback for echo cancellation
+      if (DISABLE_RTC_LOOPBACK) {
+        source.connect(this.refs.outputContext.destination);
+      } else {
+        source.connect(this.refs.outputNode!);
+      }
       source.addEventListener("ended", () => {
         this.audioSources.delete(source);
         console.log("✅ Audio playback completed");
@@ -1026,9 +1039,12 @@ export class AudioManager {
         const gainNode = this.refs.outputContext.createGain();
         gainNode.gain.value = volume;
         source.connect(gainNode);
-        // CRITICAL: Connect to outputNode, which routes through MediaStreamDestination
-        // and RTC loopback for echo cancellation. Do NOT connect directly to destination.
-        gainNode.connect(this.refs.outputNode!);
+        // Route audio: when RTC loopback is disabled, use direct destination playback
+        if (DISABLE_RTC_LOOPBACK) {
+          gainNode.connect(this.refs.outputContext.destination);
+        } else {
+          gainNode.connect(this.refs.outputNode!);
+        }
 
         // Track for cleanup
         this.typingSoundSources.add(source);

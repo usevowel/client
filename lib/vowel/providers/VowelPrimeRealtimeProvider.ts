@@ -10,6 +10,12 @@ import { getVowelPrimeUrl } from "../utils/vowel-prime-urls";
 import type { VowelPrimeEnvironment } from "../types";
 
 /**
+ * Enable detailed WebSocket message logging (incoming/outgoing)
+ * Set to false to disable the send/onmessage interceptors for debugging
+ */
+const ENABLE_WS_MESSAGE_LOGGING = false;
+
+/**
  * Get Cloudflare Access headers for vowel-prime provider
  * prime.vowel.to may be protected by Cloudflare Access in development
  * 
@@ -109,8 +115,14 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
 
     console.log('[vowel-prime] Setting up event listeners...');
 
-    // Cast session to any for event listener types (SDK has incomplete TypeScript definitions)
-    const session = this.session as any;
+    // Get session and transport references
+    // SDK 0.8+ has strict typing - transport-level events must be listened on transport, not session
+    const session = this.session as RealtimeSession<{}>;
+    const transport = session.transport;
+    
+    if (!transport) {
+      console.warn("⚠️ [vowel-prime] Session transport not available");
+    }
 
     // CRITICAL: session.created is a transport layer event, not a direct RealtimeSession event
     // We must listen to 'transport_event' and check event.type === 'session.created'
@@ -221,14 +233,15 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
 
     });
 
-    session.on('session.updated', (event: any) => {
+    // Transport-level events: session.updated
+    transport?.on('session.updated', (event: any) => {
       console.log('[vowel-prime] 🔄 session.updated:', event);
     });
 
-    // Connection close event
+    // Connection close event - transport-level
     // Note: OpenAI Agents SDK doesn't provide close code/reason in the close event
     // We rely on error events for timeout/error information before close
-    session.on('close', (event?: any) => {
+    transport?.on('close', (event?: any) => {
       const closeCode = event?.code;
       const closeReason = event?.reason || event?.message || 'Session closed';
       
@@ -250,8 +263,8 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       this.callbacks.onClose?.(detailedReason);
     });
 
-    // Disconnected event (SDK emits this after WebSocket close)
-    session.on('disconnected', (event?: any) => {
+    // Disconnected event (SDK emits this after WebSocket close) - transport-level
+    transport?.on('disconnected', (event?: any) => {
       const disconnectReason = event?.reason || event?.message || 'Connection disconnected';
       
       console.log('[vowel-prime] 🔌 Connection disconnected (SDK event)', {
@@ -264,9 +277,9 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       this.callbacks.onClose?.(disconnectReason);
     });
 
-    // Response lifecycle events
+    // Response lifecycle events - transport-level
     // OpenAI Agents.js SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
-    session.on('turn_started', (event: any) => {
+    transport?.on('turn_started', (event: any) => {
       const responseId = event?.providerData?.response?.id;
       console.log('[vowel-prime] 🤖 Turn started (response.created):', responseId);
       console.log('[vowel-prime] 🤖 Turn started full event:', JSON.stringify(event, null, 2));
@@ -296,7 +309,7 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
     });
 
-    session.on('turn_done', (event: any) => {
+    transport?.on('turn_done', (event: any) => {
       console.log('[vowel-prime] ✅ Turn done (response.done):', event?.response?.id);
       console.log('[vowel-prime] ✅ Turn done full event:', JSON.stringify(event, null, 2));
       
@@ -338,20 +351,23 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       console.log('[vowel-prime] ✅ RESPONSE_DONE message forwarded');
     });
     
-    // Debug: Log all events to see what's available
-    const sessionAny = session as any;
-    const originalEmit = sessionAny.emit;
-    if (originalEmit) {
-      sessionAny.emit = function(...args: any[]) {
-        const eventName = args[0];
-        if (eventName === 'turn_done' || eventName === 'turn_started' || eventName === 'transport_event') {
-          console.log(`[vowel-prime] 🔍 SDK emitting event: ${eventName}`, args.slice(1));
-        }
-        return originalEmit.apply(this, args);
-      };
+    // Debug: Log transport-level events to see what's available
+    if (transport) {
+      const transportAny = transport as any;
+      const originalTransportEmit = transportAny.emit;
+      if (originalTransportEmit) {
+        transportAny.emit = function(...args: any[]) {
+          const eventName = args[0];
+          if (eventName === 'turn_done' || eventName === 'turn_started' || eventName === 'session.updated') {
+            console.log(`[vowel-prime] 🔍 SDK emitting transport event: ${eventName}`, args.slice(1));
+          }
+          return originalTransportEmit.apply(this, args);
+        };
+      }
     }
 
-    session.on('response.cancelled', (event: any) => {
+    // Response cancelled - transport-level event
+    transport?.on('response.cancelled', (event: any) => {
       console.log('[vowel-prime] 🚫 Response cancelled:', event?.response?.id);
     });
 
@@ -377,7 +393,8 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
     });
 
     // Audio output events
-    // The SDK processes response.audio.delta and emits high-level 'audio' event
+    // The SDK processes response.output_audio.delta and emits high-level 'audio' event.
+    // It emits 'audio_stopped' when response.output_audio.done is received.
     session.on('audio', (event: any) => {
       // event.data is already decoded to ArrayBuffer by the SDK
       if (event.data && event.data.byteLength > 0) {
@@ -390,37 +407,17 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
     });
 
-    session.on('response.audio.done', () => {
+    session.on('audio_stopped', (event: any) => {
       console.log('[vowel-prime] 🔊 Audio response complete');
       this.callbacks.onMessage?.({
         type: RealtimeMessageType.AUDIO_DONE,
         payload: {},
+        rawMessage: event,
       });
     });
 
-    // User speech transcription - also listen directly (in case SDK emits it directly)
-    // Primary handler is in transport_event listener above
-    session.on('conversation.item.input_audio_transcription.completed', (event: any) => {
-      const transcript = event.transcript;
-      if (transcript) {
-        console.log('[vowel-prime] 📝 User transcript (direct):', transcript);
-        this.callbacks.onMessage?.({
-          type: RealtimeMessageType.TRANSCRIPT_DONE,
-          payload: { 
-            transcript: transcript,
-            role: 'user',
-            itemId: event.item_id,
-          },
-          rawMessage: event,
-        });
-      }
-    });
-
     // AI speech transcription (streaming) - TTS transcript deltas
-    // CRITICAL: According to OpenAI Agents.js SDK, audio_transcript_delta events are emitted
-    // on the transport layer, not directly on the session. We must listen on session.transport.
-    // See: https://github.com/openai/openai-agents-js - RealtimeSession processes transport events internally
-    const transport = (session as any).transport;
+    // CRITICAL: audio_transcript_delta is a transport-level event in SDK 0.8+
     if (transport) {
       // Listen for AI transcript deltas on transport
       transport.on('audio_transcript_delta', (event: any) => {
@@ -449,21 +446,9 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
     // The audio_transcript_delta (from transport above) is the authoritative source for captions
     // because it reflects what's actually spoken after TTS processing/filtering.
     // Listening to both would cause duplicate captions.
+    // Debug logging for these events is handled via transport_event above.
 
-    // Debug logging for LLM text streaming (not used for captions)
-    session.on('response.text.delta', (event: any) => {
-      if (event.delta) {
-        // This is LLM text generation, not TTS transcription - for debug only
-        console.log('[vowel-prime] 📝 LLM text delta (debug):', event.delta);
-      }
-    });
-
-    // Debug logging for complete LLM text (not used for captions)
-    session.on('response.text.done', (event: any) => {
-      console.log('[vowel-prime] 📝 LLM text done (debug):', event.text);
-    });
-
-    // Error events with enhanced session timeout handling
+    // Error events with enhanced session timeout handling - session-level event
     session.on('error', (error: any) => {
       console.error('[vowel-prime] ❌ Session error:', error);
       console.error('[vowel-prime] ❌ Error details:', JSON.stringify(error, null, 2));
@@ -665,38 +650,44 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       this.setupEventListeners();
 
       // Log all WebSocket messages for debugging (like the demo does)
-      const originalSend = (this.session as any).transport?.send;
-      if (originalSend) {
-        (this.session as any).transport.send = function(data: any) {
-          const msg = typeof data === 'string' ? JSON.parse(data) : data;
-          // Only log non-audio messages to avoid spam
-          if (msg.type !== 'input_audio_buffer.append') {
-            console.log('[vowel-prime] [WS →]', msg.type || msg);
-          }
-          return originalSend.call(this, data);
-        };
-        console.log('[vowel-prime] 🔍 WebSocket outgoing message logging enabled');
-      }
-      
-      // ALSO log incoming WebSocket messages to see what the server sends
-      const transport = (this.session as any).transport;
-      if (transport && transport.ws) {
-        const originalOnMessage = transport.ws.onmessage;
-        transport.ws.onmessage = function(event: MessageEvent) {
-          try {
-            const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+      if (ENABLE_WS_MESSAGE_LOGGING) {
+        const originalSend = (this.session as any).transport?.send;
+        if (originalSend) {
+          (this.session as any).transport.send = function(data: any) {
+            const msg = typeof data === 'string' ? JSON.parse(data) : data;
             // Only log non-audio messages to avoid spam
-            if (msg.type && msg.type !== 'response.audio.delta' && msg.type !== 'response.audio_transcript.delta') {
-              console.log('[vowel-prime] [WS ←]', msg.type, msg);
+            if (msg.type !== 'input_audio_buffer.append') {
+              console.log('[vowel-prime] [WS →]', msg.type || msg);
             }
-          } catch (e) {
-            console.log('[vowel-prime] [WS ←] (parse error)', event.data);
-          }
-          if (originalOnMessage) {
-            return originalOnMessage.call(this, event);
-          }
-        };
-        console.log('[vowel-prime] 🔍 WebSocket incoming message logging enabled');
+            return originalSend.call(this, data);
+          };
+          console.log('[vowel-prime] 🔍 WebSocket outgoing message logging enabled');
+        }
+
+        // ALSO log incoming WebSocket messages to see what the server sends
+        const transport = (this.session as any).transport;
+        if (transport && transport.ws) {
+          const originalOnMessage = transport.ws.onmessage;
+          transport.ws.onmessage = function(event: MessageEvent) {
+            try {
+              const msg = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+              // Only log non-audio messages to avoid spam
+              if (
+                msg.type &&
+                msg.type !== 'response.output_audio.delta' &&
+                msg.type !== 'response.output_audio_transcript.delta'
+              ) {
+                console.log('[vowel-prime] [WS ←]', msg.type, msg);
+              }
+            } catch (e) {
+              console.log('[vowel-prime] [WS ←] (parse error)', event.data);
+            }
+            if (originalOnMessage) {
+              return originalOnMessage.call(this, event);
+            }
+          };
+          console.log('[vowel-prime] 🔍 WebSocket incoming message logging enabled');
+        }
       }
 
       // Build connection URL with Cloudflare Access params if configured

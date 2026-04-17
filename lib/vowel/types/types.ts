@@ -269,7 +269,69 @@ export interface VowelRoute {
 }
 
 /**
- * Parameter definition for custom actions
+ * JSON Schema type for WebMCP-style action input validation
+ * Based on JSON Schema draft 2020-12
+ */
+export interface JSONSchema {
+  /** Schema type */
+  type?: "string" | "number" | "boolean" | "array" | "object" | "null";
+  /** Schema description */
+  description?: string;
+  /** Object properties */
+  properties?: Record<string, JSONSchema>;
+  /** Required properties */
+  required?: string[];
+  /** Array item schema */
+  items?: JSONSchema;
+  /** Enum values */
+  enum?: unknown[];
+  /** Default value */
+  default?: unknown;
+  /** Minimum value (for numbers) */
+  minimum?: number;
+  /** Maximum value (for numbers) */
+  maximum?: number;
+  /** Minimum length (for strings) */
+  minLength?: number;
+  /** Maximum length (for strings) */
+  maxLength?: number;
+  /** Pattern (regex for strings) */
+  pattern?: string;
+  /** Format (e.g., "email", "uri", "date-time") */
+  format?: string;
+  /** Additional properties allowed */
+  additionalProperties?: boolean | JSONSchema;
+  /** Array min items */
+  minItems?: number;
+  /** Array max items */
+  maxItems?: number;
+  /** Read-only hint */
+  readOnly?: boolean;
+  /** Write-only hint */
+  writeOnly?: boolean;
+  /** Example value */
+  example?: unknown;
+  /** Any additional JSON Schema properties */
+  [key: string]: unknown;
+}
+
+/**
+ * WebMCP-style action annotations for AI behavior hints
+ */
+export interface VowelActionAnnotations {
+  /** Indicates the tool does not modify any data */
+  readOnlyHint?: boolean;
+  /** Indicates the tool may modify or delete data */
+  destructiveHint?: boolean;
+  /** Indicates the tool is safe to retry */
+  idempotentHint?: boolean;
+  /** Indicates the tool may call external systems */
+  openWorld?: boolean;
+}
+
+/**
+ * Parameter definition for legacy custom actions
+ * @deprecated Use VowelAction with inputSchema instead
  */
 export interface VowelActionParameter {
   /** Parameter type (string, number, boolean, array, object) */
@@ -283,13 +345,49 @@ export interface VowelActionParameter {
 }
 
 /**
- * Custom action definition
+ * Legacy action definition (old format)
+ * @deprecated Use VowelAction with inputSchema instead
  */
-export interface VowelAction {
+export interface VowelLegacyAction {
   /** Human-readable description of what this action does */
   description: string;
   /** Parameter definitions */
   parameters: Record<string, VowelActionParameter>;
+}
+
+/**
+ * WebMCP-style action definition (new format)
+ * Uses JSON Schema for input validation, aligned with WebMCP standard
+ */
+export interface VowelAction {
+  /** Unique name for the action (required for WebMCP format) */
+  name: string;
+  /** Human-readable description of what this action does */
+  description: string;
+  /** JSON Schema for input validation */
+  inputSchema: JSONSchema;
+  /** Optional annotations for AI behavior hints */
+  annotations?: VowelActionAnnotations;
+}
+
+/**
+ * Union type for action definitions - accepts either format
+ * Use this for registerAction() to support both legacy and WebMCP-style actions
+ */
+export type VowelActionDefinition = VowelAction | VowelLegacyAction;
+
+/**
+ * Type guard to check if an action is in WebMCP format
+ */
+export function isWebMCPAction(action: VowelActionDefinition): action is VowelAction {
+  return 'inputSchema' in action && 'name' in action;
+}
+
+/**
+ * Type guard to check if an action is in legacy format
+ */
+export function isLegacyAction(action: VowelActionDefinition): action is VowelLegacyAction {
+  return 'parameters' in action && !('inputSchema' in action);
 }
 
 /**
@@ -946,6 +1044,14 @@ export interface VowelClientConfig {
     enabled?: boolean;
     /** Storage key prefix for persisting preference (default: 'vowel') */
     storageKeyPrefix?: string;
+  };
+
+  /** Optional: WebMCP integration configuration */
+  webMCP?: {
+    /** Discover and register WebMCP tools as Vowel actions at initialization */
+    enableDiscovery?: boolean;
+    /** Expose Vowel actions as WebMCP tools (default: true) */
+    enableExposure?: boolean;
   };
 }
 

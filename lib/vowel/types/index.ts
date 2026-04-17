@@ -5,6 +5,9 @@
 export type {
   VowelRoute,
   VowelAction,
+  VowelLegacyAction,
+  VowelActionDefinition,
+  JSONSchema,
   VowelActionParameter,
   VowelVoiceConfig,
   VowelPrimeConfig,
@@ -34,6 +37,8 @@ export type {
   TurnDetectionConfig,
   ClientVADConfig,
 } from "./types";
+
+export { isLegacyAction } from "./types";
 
 export type {
   ProviderType,

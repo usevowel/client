@@ -20,7 +20,7 @@
 
 import type {
   VowelRoute,
-  VowelAction,
+  VowelActionDefinition,
   VowelVoiceConfig,
   VowelClientConfig,
   NavigationAdapter,
@@ -991,7 +991,7 @@ export class Vowel {
    */
   registerAction<T = any>(
     name: string,
-    definition: VowelAction,
+    definition: VowelActionDefinition,
     handler: ActionHandler<T>
   ): void {
     this.toolManager.registerTool(name, definition, async (params: T) => {
@@ -1018,7 +1018,7 @@ export class Vowel {
    * ```
    */
   registerActions(
-    actions: Record<string, { definition: VowelAction; handler: ActionHandler }>
+    actions: Record<string, { definition: VowelActionDefinition; handler: ActionHandler }>
   ): void {
     for (const [name, { definition, handler }] of Object.entries(actions)) {
       this.registerAction(name, definition, handler);
@@ -1035,7 +1035,7 @@ export class Vowel {
   /**
    * Get all registered actions as a record (for configuration)
    */
-  getActionsConfig(): Record<string, VowelAction> {
+  getActionsConfig(): Record<string, VowelActionDefinition> {
     return this.toolManager.getToolDefinitions();
   }
 

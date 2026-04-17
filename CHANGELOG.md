@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+#### STT/TTS Provider Selection via Token Configuration
+
+Added support for configuring speech-to-text (STT) and text-to-speech (TTS) providers through the token system, allowing runtime selection of speech providers without requiring preset changes.
+
+**Features:**
+- `voiceConfig.stt` - Configure STT provider, model, and language in token request
+- `voiceConfig.tts` - Configure TTS provider, model, and voice in token request
+- Works with both self-hosted Core and hosted platform (Vowel Prime)
+- Provider API keys remain in environment variables; only non-secret provider/model/voice names sent in tokens
+
+**Token Precedence Hierarchy:**
+1. Token's stt/tts config (highest priority)
+2. App defaults (stored in Core)
+3. Engine env defaults (fallback)
+
+**Important - Dev-Only Feature:**
+This capability is a **development-only feature** subject to the same dev flags as LLM provider/model overrides:
+- Self-hosted: Requires `CORE_ENABLE_DEV_VOICE_OVERRIDES=true`
+- Hosted platform: Requires `VOWEL_ENABLE_DEV_VOICE_CONFIG_OVERRIDES=true`
+
+In production, speech providers should be configured through app presets, not client token overrides. This ensures consistent behavior and prevents configuration drift.
+
+**Technical Details:**
+- Added `SpeechProviderSelection` interface with `provider`, `model`, `language`, and `voice` fields
+- Token generation endpoints (Core and Platform) now accept and forward stt/tts configuration
+- Engine's session bootstrap extracts provider config from token and applies it to session
+
 ### Improved
 
 #### Web Component Subpath Exports

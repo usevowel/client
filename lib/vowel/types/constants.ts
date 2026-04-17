@@ -52,6 +52,22 @@ export const AUDIO_CONFIG = {
  *
  * @see AUDIO_CAPTURE_CONFIG.bufferSize - Samples per chunk at output sample rate (24kHz)
  */
+/**
+ * Disable RTC loopback path for audio routing.
+ * 
+ * When true, microphone audio is sent directly to the provider without going through
+ * an RTCPeerConnection loopback, and TTS audio is played directly via 
+ * outputContext.destination instead of through the RTC loopback/audio element.
+ * 
+ * This is disabled by default because Brave browser and Grok playback have unreliable
+ * or broken audio through the RTC loopback path. The loopback requires specific
+ * WebRTC/AudioWorklet behavior that these browsers don't handle correctly.
+ * 
+ * Set to false to re-enable the RTC loopback path for echo cancellation in browsers
+ * that properly support it (Chrome, Edge).
+ */
+export const DISABLE_RTC_LOOPBACK = true;
+
 export const AUDIO_CAPTURE_CONFIG = {
   /**
    * Number of samples to accumulate before sending each audio chunk.

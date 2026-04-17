@@ -231,12 +231,16 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
   private setupEventListeners(): void {
     if (!this.session) return;
 
-    // Note: Using 'as any' for session.on() due to incomplete TypeScript definitions
-    // in @openai/agents-realtime SDK. The SDK does support these events at runtime.
-    const session = this.session as any;
+    // SDK 0.8+ has strict typing - transport-level events must be listened on transport, not session
+    const session = this.session;
+    const transport = session.transport;
+    
+    if (!transport) {
+      console.warn("⚠️ [OpenAI] Session transport not available");
+    }
 
-    // Session events
-    session.on('connected', () => {
+    // Transport-level events: connected, disconnected
+    transport?.on('connected', () => {
       console.log("✅ [OpenAI] Session 'connected' event received");
       console.log("  Current isConnected state:", this.isConnected);
       const message: RealtimeMessage = {
@@ -246,7 +250,7 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       this.callbacks.onMessage?.(message);
     });
 
-    session.on('disconnected', () => {
+    transport?.on('disconnected', () => {
       console.log("🔌 [OpenAI] Session 'disconnected' event received");
       console.log("  Was expected?:", !this.isConnected);
       console.trace("Disconnect event stack trace:");
@@ -298,28 +302,33 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     });
 
     // Audio events - AI speaking
-    session.on('response.audio.delta', (event: any) => {
-      // OpenAI SDK auto-plays audio, but we still want to notify
+    // @openai/agents-realtime normalizes response.output_audio.delta to the high-level
+    // session 'audio' event and response.output_audio.done to 'audio_stopped'.
+    session.on('audio', (event: any) => {
+      // OpenAI SDK auto-plays audio, but we still want to notify SessionManager
+      // so internally-handled providers can still drive speaking UI state.
       const message: RealtimeMessage = {
         type: RealtimeMessageType.AUDIO_DELTA,
         payload: {
-          delta: event.delta, // Base64 audio data
+          audio: event.data,
         },
+        rawMessage: event,
       };
       this.callbacks.onMessage?.(message);
     });
 
-    session.on('response.audio.done', () => {
+    session.on('audio_stopped', (event: any) => {
       const message: RealtimeMessage = {
         type: RealtimeMessageType.AUDIO_DONE,
         payload: {},
+        rawMessage: event,
       };
       this.callbacks.onMessage?.(message);
     });
 
-    // Response lifecycle events
+    // Response lifecycle events - transport-level
     // OpenAI Agents.js SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
-    session.on('turn_started', (event: any) => {
+    transport?.on('turn_started', (event: any) => {
       console.log('[openai] 🤖 Turn started (response.created):', event?.providerData?.response?.id);
       const message: RealtimeMessage = {
         type: RealtimeMessageType.RESPONSE_CREATED,
@@ -332,7 +341,7 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       this.callbacks.onMessage?.(message);
     });
 
-    session.on('turn_done', (event: any) => {
+    transport?.on('turn_done', (event: any) => {
       console.log('[openai] ✅ Turn done (response.done):', event?.response?.id);
       
       // Extract final AI speech transcript from response output items
@@ -375,30 +384,8 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     // Note: response.cancelled is handled via interrupt() method, not a direct event
     // The SDK handles cancellation internally when interrupt() is called or when user speaks over AI
 
-    // User speech transcription - listen directly
-    // The SDK may emit this directly or wrap it in transport_event
-    session.on('conversation.item.input_audio_transcription.completed', (event: any) => {
-      const transcript = event.transcript;
-      if (transcript) {
-        console.log("📝 [OpenAI] User transcribed:", transcript);
-        const message: RealtimeMessage = {
-          type: RealtimeMessageType.TRANSCRIPT_DONE,
-          payload: {
-            transcript: transcript,
-            role: 'user',
-            itemId: event.item_id,
-          },
-          rawMessage: event,
-        };
-        this.callbacks.onMessage?.(message);
-      }
-    });
-
     // AI speech transcription (streaming) - emitted as AI speaks
-    // CRITICAL: According to OpenAI Agents.js SDK, audio_transcript_delta events are emitted
-    // on the transport layer, not directly on the session. We must listen on session.transport.
-    // See: https://github.com/openai/openai-agents-js - RealtimeSession processes transport events internally
-    const transport = (session as any).transport;
+    // CRITICAL: audio_transcript_delta is a transport-level event in SDK 0.8+
     if (transport) {
       // Listen for AI transcript deltas on transport
       transport.on('audio_transcript_delta', (event: any) => {
@@ -419,9 +406,8 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       console.warn("⚠️ [OpenAI] Session transport not available, cannot listen for transcript events");
     }
 
-
-    // Function/tool calls from OpenAI SDK
-    session.on('response.function_call_arguments.done', (event: any) => {
+    // Function/tool calls from OpenAI SDK - transport-level event
+    transport?.on('response.function_call_arguments.done', (event: any) => {
       console.log("🔧 [OpenAI] Function call received:");
       console.log("  Tool Name:", event.name);
       console.log("  Call ID:", event.call_id);
@@ -1030,7 +1016,6 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     return this.isConnected;
   }
 }
-
 
 
 

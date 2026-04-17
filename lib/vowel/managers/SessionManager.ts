@@ -180,7 +180,10 @@ export class SessionManager {
   
   // Deduplication: Track processed responseIds to prevent dual inference
   private processedResponseIds: Set<string> = new Set();
+  private processedResponseDoneIds: Set<string> = new Set();
   private readonly MAX_PROCESSED_RESPONSE_IDS: number = 100; // Prevent memory leaks
+  private assistantAudioWatchdogTimeout: ReturnType<typeof setTimeout> | null = null;
+  private readonly ASSISTANT_AUDIO_WATCHDOG_MS = 4000;
   
   // Timing tracking for initialization
   private initTimings: {
@@ -485,7 +488,46 @@ export class SessionManager {
     }
 
     this.isAssistantAudioActive = isActive;
+
+    // Providers that handle audio playback internally (for example, WebRTC-backed
+    // OpenAI sessions) never flow through AudioManager.playAudio(), so they need
+    // a separate path to drive AI speaking UI state.
+    if (this.provider?.handlesAudioInternally()) {
+      this.config.onAISpeakingChange?.(isActive);
+    }
+
+    if (isActive) {
+      this.refreshAssistantAudioWatchdog(source);
+    } else {
+      this.clearAssistantAudioWatchdog();
+    }
+
     this.updateIdleHibernateTimer(`assistant audio ${source}`);
+  }
+
+  private refreshAssistantAudioWatchdog(source: string): void {
+    if (!this.provider?.handlesAudioInternally()) {
+      return;
+    }
+
+    this.clearAssistantAudioWatchdog();
+    this.assistantAudioWatchdogTimeout = setTimeout(() => {
+      this.assistantAudioWatchdogTimeout = null;
+
+      if (!this.isAssistantAudioActive || !this.provider?.handlesAudioInternally()) {
+        return;
+      }
+
+      console.warn(`⚠️ [SessionManager] Assistant audio watchdog expired after ${this.ASSISTANT_AUDIO_WATCHDOG_MS}ms (${source})`);
+      this.setAssistantAudioActive(false, 'watchdog timeout');
+    }, this.ASSISTANT_AUDIO_WATCHDOG_MS);
+  }
+
+  private clearAssistantAudioWatchdog(): void {
+    if (this.assistantAudioWatchdogTimeout) {
+      clearTimeout(this.assistantAudioWatchdogTimeout);
+      this.assistantAudioWatchdogTimeout = null;
+    }
   }
 
   private isStaleProviderCallback(expectedLifecycleId: number, callbackName: string): boolean {
@@ -818,9 +860,20 @@ export class SessionManager {
           
           // DEDUPLICATION: Check if this responseId was already processed
           const doneResponseId = message.payload?.responseId;
-          if (doneResponseId && this.processedResponseIds.has(doneResponseId)) {
+          if (doneResponseId && this.processedResponseDoneIds.has(doneResponseId)) {
             console.log(`⚠️ [SessionManager] Ignoring duplicate RESPONSE_DONE for responseId: ${doneResponseId}`);
             break;
+          }
+
+          if (doneResponseId) {
+            this.processedResponseDoneIds.add(doneResponseId);
+            if (this.processedResponseDoneIds.size > this.MAX_PROCESSED_RESPONSE_IDS) {
+              const iterator = this.processedResponseDoneIds.values();
+              const firstId = iterator.next().value as string | undefined;
+              if (firstId) {
+                this.processedResponseDoneIds.delete(firstId);
+              }
+            }
           }
           
           console.log("✅ [SessionManager] ═══════════════════════════════════════");
@@ -1044,6 +1097,8 @@ export class SessionManager {
             this.updateToolExecutingState(false);
             console.log("❌ [SessionManager] Tool execution cleared (error occurred)");
           }
+          this.setAssistantAudioActive(false, "error");
+          this.isResponseInProgress = false;
           this.config.onError?.(message.payload.message);
           break;
 
@@ -1421,10 +1476,9 @@ export class SessionManager {
       
       // Convert tool definitions to include names
       const toolDefinitions = this.config.toolManager.getToolDefinitions();
-      const toolsWithNames = Object.entries(toolDefinitions).map(([name, definition]) => ({
-        name,
-        ...definition,
-      }));
+      const toolsWithNames = Object.entries(toolDefinitions).map(([name, definition]) => (
+        'name' in definition ? definition : { name, ...definition }
+      ));
       
       // Use system instructions from token response if available, otherwise fall back to config
       // The server builds the complete instructions (including app-specific context)
@@ -1816,6 +1870,8 @@ export class SessionManager {
     
     // Reset deduplication tracking
     this.processedResponseIds.clear();
+    this.processedResponseDoneIds.clear();
+    this.clearAssistantAudioWatchdog();
 
     try {
       if (this.provider) {

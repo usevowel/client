@@ -127,7 +127,7 @@ const vowel = new Vowel({
     provider: 'grok', // 'gemini' | 'openai' | 'grok' | 'vowel-prime'
     
     // Model
-    model: 'grok-4-1-fast-reasoning',
+    model: 'grok-voice-fast-1.0',
     
     // Voice
     voice: 'Eve', // Grok: Eve, Ara, Rex, Sal, Leo

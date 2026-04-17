@@ -18,8 +18,14 @@
  * @license Proprietary
  */
 
-import type { VowelAction, VowelRoute } from "../types";
+import type {
+  JSONSchema,
+  VowelActionDefinition,
+  VowelActionParameter,
+  VowelRoute,
+} from "../types";
 import type { RouterAdapter } from "../types/types";
+import { isLegacyAction } from "../types/types";
 
 function sanitizeLooseValue(value: any): any {
   if (value === null) {
@@ -43,7 +49,47 @@ function sanitizeLooseValue(value: any): any {
   return value;
 }
 
-function sanitizeToolParams(params: any, definition: VowelAction): any {
+function getParameterDefinitions(definition: VowelActionDefinition): Record<string, VowelActionParameter> {
+  if (isLegacyAction(definition)) {
+    return definition.parameters;
+  }
+
+  const inputSchema = definition.inputSchema;
+  if (inputSchema.type !== 'object' || !inputSchema.properties) {
+    return {};
+  }
+
+  const required = new Set(inputSchema.required ?? []);
+  const parameterDefinitions: Record<string, VowelActionParameter> = {};
+
+  for (const [name, schema] of Object.entries(inputSchema.properties)) {
+    const propertySchema = schema as JSONSchema;
+    const type = propertySchema.type;
+
+    if (
+      type !== 'string' &&
+      type !== 'number' &&
+      type !== 'boolean' &&
+      type !== 'array' &&
+      type !== 'object'
+    ) {
+      continue;
+    }
+
+    parameterDefinitions[name] = {
+      type,
+      description: propertySchema.description ?? '',
+      optional: !required.has(name),
+      enum: Array.isArray(propertySchema.enum)
+        ? propertySchema.enum.filter((value): value is string => typeof value === 'string')
+        : undefined,
+    } satisfies VowelActionParameter;
+  }
+
+  return parameterDefinitions;
+}
+
+function sanitizeToolParams(params: any, definition: VowelActionDefinition): any {
   if (params === null || params === undefined) {
     return {};
   }
@@ -52,7 +98,7 @@ function sanitizeToolParams(params: any, definition: VowelAction): any {
     return sanitizeLooseValue(params);
   }
 
-  const parameterDefinitions = definition.parameters || {};
+  const parameterDefinitions = getParameterDefinitions(definition);
   const sanitizedEntries = Object.entries(params)
     .map(([key, value]) => {
       const parameterDefinition = parameterDefinitions[key];
@@ -98,7 +144,7 @@ export type ToolHandler<T = any> = (params: T, context: ToolContext) => Promise<
  */
 export interface Tool {
   /** Tool definition for AI */
-  definition: VowelAction;
+  definition: VowelActionDefinition;
   /** Execution handler */
   handler: ToolHandler;
 }
@@ -142,17 +188,19 @@ export class ToolManager {
   /**
    * Register a tool
    */
-  registerTool(name: string, definition: VowelAction, handler: ToolHandler): void {
+  registerTool(name: string, definition: VowelActionDefinition, handler: ToolHandler): void {
+    const parameterDefinitions = getParameterDefinitions(definition);
+
     console.log(`%c🔧 TOOL REGISTRATION`, 'background: #00D9FF; color: #000; font-weight: bold; padding: 4px 8px; border-radius: 3px;');
     console.log(`%cTool: ${name}`, 'color: #00D9FF; font-weight: bold; font-size: 13px;');
     console.log(`  Description: %c${definition.description || '(no description)'}`, 'color: #88FF88;');
-    console.log(`  Parameters:`, definition.parameters || {});
-    console.log(`  Parameter Count: %c${Object.keys(definition.parameters || {}).length}`, 'color: #FFD700; font-weight: bold;');
+    console.log(`  Parameters:`, parameterDefinitions);
+    console.log(`  Parameter Count: %c${Object.keys(parameterDefinitions).length}`, 'color: #FFD700; font-weight: bold;');
     
     // Log each parameter in detail
-    if (definition.parameters && Object.keys(definition.parameters).length > 0) {
+    if (Object.keys(parameterDefinitions).length > 0) {
       console.log(`%c  📋 Parameter Details:`, 'color: #FF6B6B; font-weight: bold;');
-      Object.entries(definition.parameters).forEach(([paramName, paramDef]: [string, any]) => {
+      Object.entries(parameterDefinitions).forEach(([paramName, paramDef]: [string, any]) => {
         console.log(`    %c${paramName}%c: type=%c${paramDef.type || 'unknown'}%c, optional=%c${paramDef.optional || false}`, 
           'color: #FFD700; font-weight: bold;',
           'color: #CCC;',
@@ -175,7 +223,7 @@ export class ToolManager {
   /**
    * Register multiple tools at once
    */
-  registerTools(tools: Record<string, { definition: VowelAction; handler: ToolHandler }>): void {
+  registerTools(tools: Record<string, { definition: VowelActionDefinition; handler: ToolHandler }>): void {
     for (const [name, tool] of Object.entries(tools)) {
       this.registerTool(name, tool.definition, tool.handler);
     }
@@ -198,8 +246,8 @@ export class ToolManager {
   /**
    * Get all tool definitions for AI configuration
    */
-  getToolDefinitions(): Record<string, VowelAction> {
-    const definitions: Record<string, VowelAction> = {};
+  getToolDefinitions(): Record<string, VowelActionDefinition> {
+    const definitions: Record<string, VowelActionDefinition> = {};
     for (const [name, tool] of this.tools.entries()) {
       definitions[name] = tool.definition;
     }
