@@ -108,6 +108,24 @@ export class AudioManager {
       sampleRate,
     });
 
+    // Log audio output device info
+    if (typeof navigator !== 'undefined' && navigator.mediaDevices?.enumerateDevices) {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioOutputs = devices.filter(d => d.kind === 'audiooutput');
+        console.log(`🔊 [AudioManager] Available audio output devices:`);
+        audioOutputs.forEach((device, i) => {
+          console.log(`  ${i + 1}. ${device.label || 'Unknown'} (deviceId: ${device.deviceId})`);
+        });
+        const defaultOutput = audioOutputs.find(d => d.deviceId === 'default') || audioOutputs[0];
+        if (defaultOutput) {
+          console.log(`  → Using: ${defaultOutput.label || defaultOutput.deviceId}`);
+        }
+      } catch (e) {
+        console.log(`🔊 [AudioManager] Could not enumerate audio devices:`, e);
+      }
+    }
+
     if (this.refs.outputContext.state === 'suspended') {
       await this.refs.outputContext.resume();
       console.log(`✅ Output AudioContext resumed @ ${sampleRate}Hz`);

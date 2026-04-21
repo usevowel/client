@@ -126,6 +126,32 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         });
       }
 
+      // xAI uses response.function_call_arguments.done for tool calls (different from OpenAI)
+      if (event.type === 'response.function_call_arguments.done') {
+        console.log('[grok] Function call received:', event.name, 'call_id:', event.call_id);
+        
+        let toolArgs = {};
+        try {
+          if (event.arguments) {
+            toolArgs = typeof event.arguments === 'string' 
+              ? JSON.parse(event.arguments) 
+              : event.arguments;
+          }
+        } catch (e) {
+          console.warn('[grok] Failed to parse function arguments:', e);
+        }
+
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.TOOL_CALL,
+          payload: {
+            toolCallId: event.call_id,
+            toolName: event.name,
+            parameters: toolArgs,
+          },
+          rawMessage: event,
+        });
+      }
+
       if (event.type === 'response.cancelled') {
         this.callbacks.onMessage?.({
           type: RealtimeMessageType.RESPONSE_CANCELLED,
