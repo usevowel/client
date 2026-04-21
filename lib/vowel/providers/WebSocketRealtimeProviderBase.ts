@@ -523,6 +523,8 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
 
     transport?.on('turn_done', (event: any) => {
       const responseId = event?.response?.id;
+
+      console.log(`✅ [${provider}] Turn done: ${responseId}`);
       
       // Extract final AI speech transcript from response output items
       if (event?.response?.output && Array.isArray(event.response.output)) {

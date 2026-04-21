@@ -208,7 +208,7 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         instructions: agentConfig.instructions,
       };
 
-      this.agent = new RealtimeAgent(agentConfig);
+      this.agent = new RealtimeAgent({ ...agentConfig});
 
       const turnDetection = this.config.metadata?.turnDetection as any;
       const turnDetectionMode = this.getResolvedTurnDetectionMode();

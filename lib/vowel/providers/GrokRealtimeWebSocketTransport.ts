@@ -11,10 +11,58 @@ export class GrokRealtimeWebSocketTransport extends OpenAIRealtimeWebSocket {
       return event;
     }
 
+ 
     try {
       const parsed = JSON.parse(rawData);
       const eventType = parsed?.type;
       const item = parsed?.item;
+      let normalizedEvent = parsed;
+      let didNormalize = false;
+
+      if ('previous_item_id' in parsed) {
+        normalizedEvent = { ...normalizedEvent };
+        // delete normalizedEvent.previous_item_id;
+        didNormalize = true;
+
+        console.warn('[grok] Removed unsupported previous_item_id field:', {
+          eventType,
+        });
+      }
+
+      if (
+        (eventType === 'response.created' || eventType === 'response.done') &&
+        typeof parsed?.response?.status_details === 'string'
+      ) {
+        normalizedEvent = {
+          ...normalizedEvent,
+          response: {
+            ...normalizedEvent.response,
+            status_details: {
+              type: normalizedEvent.response.status_details,
+            },
+          },
+        };
+        didNormalize = true;
+
+        console.warn('[grok] Normalized response status_details string:', {
+          eventType,
+          status: normalizedEvent.response.status,
+          originalStatusDetailsType: typeof parsed.response.status_details,
+        });
+      }
+
+      if (eventType === 'response.content_part.done' && parsed?.part == null) {
+        normalizedEvent = {
+          ...normalizedEvent,
+          part: {},
+        };
+        didNormalize = true;
+
+        console.warn('[grok] Normalized missing content part:', {
+          eventType,
+        });
+      }
+
       const itemEventTypes = new Set([
         'conversation.item.added',
         'conversation.item.done',
@@ -24,7 +72,14 @@ export class GrokRealtimeWebSocketTransport extends OpenAIRealtimeWebSocket {
       ]);
 
       if (!itemEventTypes.has(eventType) || !item || item.type !== 'message') {
-        return event;
+        if (!didNormalize) {
+          return event;
+        }
+
+        return {
+          ...event,
+          data: JSON.stringify(normalizedEvent),
+        };
       }
 
       if (!Array.isArray(item.content)) {
@@ -34,13 +89,14 @@ export class GrokRealtimeWebSocketTransport extends OpenAIRealtimeWebSocket {
             ? item.content
             : [item.content];
 
-        const normalizedEvent = {
-          ...parsed,
+        normalizedEvent = {
+          ...normalizedEvent,
           item: {
             ...item,
             content: normalizedContent,
           },
         };
+        didNormalize = true;
 
         console.warn('[grok] Normalized message item with invalid content shape:', {
           eventType,
