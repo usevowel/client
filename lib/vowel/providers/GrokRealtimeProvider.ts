@@ -128,7 +128,14 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
 
       // xAI uses response.function_call_arguments.done for tool calls (different from OpenAI)
       if (event.type === 'response.function_call_arguments.done') {
-        console.log('[grok] Function call received:', event.name, 'call_id:', event.call_id);
+        console.log('[grok] Function call event:', JSON.stringify(event, null, 2));
+        
+        // xAI uses different property names than OpenAI
+        // Try multiple possible property names for the function name
+        const toolName = event.name || event.function_name || event.functionName || event.tool_name;
+        const toolCallId = event.call_id || event.callId || event.id;
+        
+        console.log('[grok] Function call parsed:', { toolName, toolCallId });
         
         let toolArgs = {};
         try {
@@ -144,8 +151,8 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         this.callbacks.onMessage?.({
           type: RealtimeMessageType.TOOL_CALL,
           payload: {
-            toolCallId: event.call_id,
-            toolName: event.name,
+            toolCallId: toolCallId,
+            toolName: toolName,
             parameters: toolArgs,
           },
           rawMessage: event,
