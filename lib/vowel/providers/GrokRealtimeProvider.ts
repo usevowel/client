@@ -276,6 +276,33 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       });
     });
 
+    // Listen to the SDK's function_call event - this is the proper way to handle tool calls
+    // The SDK extracts the tool name from response.output_item.done automatically
+    session.on('function_call', (event: any) => {
+      console.log('[grok] SDK function_call event:', event);
+      
+      let toolArgs = {};
+      try {
+        if (event.arguments) {
+          toolArgs = typeof event.arguments === 'string' 
+            ? JSON.parse(event.arguments) 
+            : event.arguments;
+        }
+      } catch (e) {
+        console.warn('[grok] Failed to parse function arguments:', e);
+      }
+
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.TOOL_CALL,
+        payload: {
+          toolCallId: event.callId,
+          toolName: event.name,
+          parameters: toolArgs,
+        },
+        rawMessage: event,
+      });
+    });
+
     session.on('audio_interrupted', () => {
       this.callbacks.onMessage?.({
         type: RealtimeMessageType.AUDIO_INTERRUPTED,
