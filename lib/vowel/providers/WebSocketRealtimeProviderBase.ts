@@ -207,9 +207,13 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
         name: toolDef.name,
         description: toolDef.description || "",
         parameters: schema,
-        execute: async (args: any) => {
-          const toolCallId = `tool_${Date.now()}_${Math.random()}`;
+        execute: async (args: any, _runContext?: any, details?: any) => {
+          const toolCallId =
+            details?.toolCall?.callId ??
+            details?.toolCall?.call_id ??
+            `tool_${Date.now()}_${Math.random()}`;
           console.log(`⚡ [${provider}] Tool execute: ${toolDef.name}`, args);
+          console.log(`⚡ [${provider}] Tool call id: ${toolCallId}`);
 
           return new Promise((resolve) => {
             this.pendingToolExecutions.set(toolCallId, resolve);
@@ -458,32 +462,11 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
     const session = this.session;
     const transport = (session as any).transport;
 
-    // Tool calls - use SDK's built-in function_call event
-    // This properly extracts tool name from response.output_item.done
-    session.on('function_call', (event: any) => {
-      console.log(`⚡ [${provider}] SDK function_call event:`, event.name);
-      
-      let toolArgs = {};
-      try {
-        if (event.arguments) {
-          toolArgs = typeof event.arguments === 'string' 
-            ? JSON.parse(event.arguments) 
-            : event.arguments;
-        }
-      } catch (e) {
-        console.warn(`⚠️ [${provider}] Failed to parse function arguments:`, e);
-      }
-
-      this.callbacks.onMessage?.({
-        type: RealtimeMessageType.TOOL_CALL,
-        payload: {
-          toolCallId: event.callId,
-          toolName: event.name,
-          parameters: toolArgs,
-        },
-        rawMessage: event,
-      });
-    });
+    // IMPORTANT: Do not listen to the SDK's function_call event here.
+    // For these WebSocket providers, the SDK already invokes each tool's execute()
+    // callback, and createSDKTools() bridges that callback into our TOOL_CALL flow.
+    // Emitting TOOL_CALL again from function_call would execute every tool twice and
+    // leave one of the duplicate paths unresolved.
 
     // Audio events - SDK handles these consistently
     session.on('audio', (event: any) => {

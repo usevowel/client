@@ -830,9 +830,6 @@ export class SessionManager {
           
           this.isResponseInProgress = true;
           
-          // Clear interrupt flag so new audio can play
-          this.config.audioManager.clearInterrupt();
-          
           // User is no longer speaking when AI starts responding
           this.setClientSpeechActive(false, "response created");
           this.setServerSpeechActive(false, "response created");

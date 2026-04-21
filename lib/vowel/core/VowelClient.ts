@@ -46,6 +46,12 @@ import { FloatingActionPillManager } from "../ui/FloatingActionPillManager";
 import { isMobileOrTablet } from "../utils/device-detection";
 import { DarkModeManager } from "../utils/darkMode";
 import { warnDeprecated } from "../utils/deprecation";
+import {
+  isWebMCPAvailable,
+  discoverWebMCPTools,
+  registerVowelActionAsWebMCP,
+  unregisterWebMCPTool,
+} from "../webmcp";
 
 /**
  * Main Vowel client class
@@ -101,6 +107,7 @@ export class Vowel {
   private legacyRouter?: RouterAdapter;
   private darkModeManager?: DarkModeManager;
   private context: Record<string, unknown> | null = null; // Dynamic context object that gets stringified and appended to system prompt
+  private webMCPRegistrations: Map<string, AbortController> = new Map(); // Track WebMCP tool registrations for cleanup
 
   constructor(config: VowelClientConfig) {
     // Log Vowel client version on initialization
@@ -648,6 +655,148 @@ export class Vowel {
 
     // Auto-register built-in actions based on available adapters
     this.registerBuiltInActions();
+
+    // Log WebMCP configuration status
+    const webMCPEnabled = config.webMCP?.enableExposure !== false;
+    const webMCPDiscoveryEnabled = config.webMCP?.enableDiscovery === true;
+    
+    if (webMCPEnabled) {
+      console.log('🔗 [VowelClient] WebMCP integration enabled');
+      console.log('   └─ Exposure (expose Vowel actions as WebMCP tools): enabled');
+      console.log('   └─ Discovery (discover WebMCP tools from browser):', webMCPDiscoveryEnabled ? 'enabled' : 'disabled');
+      
+      if (isWebMCPAvailable()) {
+        console.log('   └─ Native WebMCP API: ✅ available');
+      } else {
+        console.log('   └─ Native WebMCP API: ❌ not available (Chrome with flag required)');
+        console.log('   └─ Tools will still be registered for the WebMCP Inspector');
+      }
+    } else {
+      console.log('🔗 [VowelClient] WebMCP integration disabled by configuration');
+    }
+
+    // Initialize WebMCP integration if enabled
+    if (config.webMCP?.enableDiscovery) {
+      this.initializeWebMCPDiscovery();
+    }
+  }
+
+  /**
+   * Initialize WebMCP tool discovery
+   * Discovers WebMCP tools registered in the browser and registers them as Vowel actions
+   */
+  private async initializeWebMCPDiscovery(): Promise<void> {
+    console.log('[VowelClient] Initializing WebMCP discovery...');
+    
+    try {
+      const tools = await discoverWebMCPTools();
+      
+      for (const tool of tools) {
+        // Register discovered WebMCP tools as Vowel actions
+        this.toolManager.registerTool(tool.name, {
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        }, async (params) => {
+          // This handler will be called when the AI uses this tool
+          return { success: true, result: params };
+        });
+        
+        console.log('[VowelClient] Registered WebMCP tool as Vowel action:', tool.name);
+      }
+      
+      console.log('[VowelClient] WebMCP discovery complete. Found', tools.length, 'tools');
+    } catch (error) {
+      console.warn('[VowelClient] WebMCP discovery failed:', error);
+    }
+  }
+
+  /**
+   * Discover and re-register WebMCP tools
+   * Use this to manually re-discover WebMCP tools after page changes
+   * 
+   * @returns Promise that resolves when discovery is complete
+   * 
+   * @example
+   * ```ts
+   * // Re-discover WebMCP tools
+   * await vowel.rediscoverWebMCPTools();
+   * ```
+   */
+  public async rediscoverWebMCPTools(): Promise<void> {
+    // Enable discovery by default if webMCP config exists but enableDiscovery is not set
+    const discoveryEnabled = this.config.webMCP?.enableDiscovery === true;
+    const webMCPConfigExists = this.config.webMCP !== undefined;
+    
+    if (!discoveryEnabled) {
+      if (webMCPConfigExists) {
+        console.log('[VowelClient] 🔍 WebMCP discovery is disabled. Set webMCP.enableDiscovery: true to enable.');
+      } else {
+        console.log('[VowelClient] 🔍 WebMCP not configured. Initialize with webMCP config to enable discovery.');
+      }
+      return;
+    }
+
+    console.log('[VowelClient] 🔍 Re-discovering WebMCP tools...');
+    await this.initializeWebMCPDiscovery();
+  }
+
+  /**
+   * Expose a Vowel action as a WebMCP tool
+   * 
+   * @param name - Action name
+   * @param definition - Action definition
+   * @param handler - Action handler
+   */
+  private async exposeActionAsWebMCP(
+    name: string,
+    definition: VowelActionDefinition,
+    handler: (params: any) => Promise<any>
+  ): Promise<void> {
+    // Default enableExposure to true if not explicitly set to false
+    const exposureEnabled = this.config.webMCP?.enableExposure !== false;
+    
+    if (!exposureEnabled) {
+      console.log('[VowelClient] ⏭️  Skipping WebMCP exposure (disabled in config):', name);
+      return;
+    }
+
+    if (!isWebMCPAvailable()) {
+      console.log('[VowelClient] ⏭️  Skipping WebMCP exposure (API not available):', name);
+      return;
+    }
+
+    try {
+      const controller = await registerVowelActionAsWebMCP(name, definition, handler);
+      if (controller) {
+        this.webMCPRegistrations.set(name, controller);
+        console.log('[VowelClient] 🌐 Exposed action as WebMCP tool:', name);
+      } else {
+        console.log('[VowelClient] ⚠️  WebMCP tool registration returned null:', name);
+      }
+    } catch (error) {
+      console.warn('[VowelClient] ❌ Failed to expose action as WebMCP:', name, error);
+    }
+  }
+
+  /**
+   * Clean up all WebMCP tool registrations
+   */
+  private cleanupWebMCPTools(): void {
+    const count = this.webMCPRegistrations.size;
+    
+    if (count === 0) {
+      return;
+    }
+    
+    console.log('[VowelClient] 🧹 Cleaning up', count, 'WebMCP tool registrations...');
+    
+    for (const [name, controller] of this.webMCPRegistrations) {
+      unregisterWebMCPTool(controller);
+      console.log('[VowelClient]   └─ Unregistered:', name);
+    }
+    this.webMCPRegistrations.clear();
+    console.log('[VowelClient] ✅ WebMCP cleanup complete');
   }
 
   /**
@@ -994,10 +1143,17 @@ export class Vowel {
     definition: VowelActionDefinition,
     handler: ActionHandler<T>
   ): void {
-    this.toolManager.registerTool(name, definition, async (params: T) => {
+    // Create wrapped handler that ensures proper return format
+    const wrappedHandler = async (params: T) => {
       const result = await handler(params);
       return result || { success: true };
-    });
+    };
+    
+    // Register with ToolManager
+    this.toolManager.registerTool(name, definition, wrappedHandler);
+    
+    // Also expose as WebMCP tool if enabled
+    this.exposeActionAsWebMCP(name, definition, wrappedHandler);
   }
 
   /**
@@ -1383,6 +1539,9 @@ export class Vowel {
 
     // Notify action ready
     this.actionNotifier.notifyReady('Ready');
+
+    // Cleanup WebMCP tool registrations
+    this.cleanupWebMCPTools();
 
     console.log("✅ [VowelClient] Cleanup complete");
   }

@@ -87,7 +87,7 @@ export class AudioManager {
   private providerRef: RealtimeProvider | null = null;
   private config: AudioManagerConfig;
   private isAISpeaking: boolean = false;
-  private isInterrupted: boolean = false; // Flag to discard incoming audio after client-side interrupt
+  private playbackGeneration: number = 0; // Invalidates queued/in-flight audio from interrupted turns
   private isMuted: boolean = false;
   private selectedDeviceId: string | null = null;
   private currentDevice: MediaDeviceInfo | null = null;
@@ -954,11 +954,7 @@ export class AudioManager {
       encoding: 'pcm16',
     };
 
-    // Discard audio if interrupted (client-side VAD detected user speech)
-    if (this.isInterrupted) {
-      console.log("🚫 [AudioManager] Discarding audio chunk (interrupted by user speech)");
-      return;
-    }
+    const playbackGeneration = this.playbackGeneration;
 
     try {
       // First audio chunk - AI started speaking
@@ -986,6 +982,11 @@ export class AudioManager {
         outputAudioFormat.sampleRate,
         outputAudioFormat.channels
       );
+
+      if (playbackGeneration !== this.playbackGeneration || !this.refs.outputContext) {
+        console.log("🚫 [AudioManager] Discarding stale audio chunk from interrupted turn");
+        return;
+      }
 
       this.nextStartTime = Math.max(
         this.nextStartTime,
@@ -1127,9 +1128,9 @@ export class AudioManager {
     console.log(`  Was AI speaking: ${wasAISpeaking}`);
     console.log(`  Next start time before reset: ${this.nextStartTime}`);
     
-    // Set interrupted flag to discard incoming audio chunks
-    this.isInterrupted = true;
-    console.log("🚫 [AudioManager] Interrupt flag set - will discard incoming audio");
+    // Invalidate any queued or in-flight audio decode from the interrupted turn.
+    this.playbackGeneration += 1;
+    console.log(`🚫 [AudioManager] Playback generation advanced to ${this.playbackGeneration}`);
     
     // Stop and remove all audio sources
     let stoppedCount = 0;
@@ -1160,17 +1161,6 @@ export class AudioManager {
     }
     
     console.log("✅ [AudioManager] Audio playback stopped successfully");
-  }
-
-  /**
-   * Clear the interrupt flag to allow audio playback again.
-   * Called when a new response starts from the AI.
-   */
-  clearInterrupt(): void {
-    if (this.isInterrupted) {
-      console.log("✅ [AudioManager] Interrupt flag cleared - ready to play audio");
-      this.isInterrupted = false;
-    }
   }
 
   /**
