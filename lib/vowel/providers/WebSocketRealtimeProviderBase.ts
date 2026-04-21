@@ -439,4 +439,156 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
 
     console.log(`✅ [${provider}] Agent updated successfully`);
   }
+
+  /**
+   * Set up common SDK event listeners for all WebSocket providers.
+   * This consolidates event handling that was previously duplicated across
+   * OpenAI, VowelPrime, and Grok providers.
+   * 
+   * Providers should call this method during their connect() after session is created.
+   */
+  protected setupSDKSessionEventListeners(): void {
+    const provider = this.getLogLabel();
+    
+    if (!this.session) {
+      console.warn(`⚠️ [${provider}] Cannot setup SDK listeners: no session`);
+      return;
+    }
+
+    const session = this.session;
+    const transport = (session as any).transport;
+
+    // Tool calls - use SDK's built-in function_call event
+    // This properly extracts tool name from response.output_item.done
+    session.on('function_call', (event: any) => {
+      console.log(`⚡ [${provider}] SDK function_call event:`, event.name);
+      
+      let toolArgs = {};
+      try {
+        if (event.arguments) {
+          toolArgs = typeof event.arguments === 'string' 
+            ? JSON.parse(event.arguments) 
+            : event.arguments;
+        }
+      } catch (e) {
+        console.warn(`⚠️ [${provider}] Failed to parse function arguments:`, e);
+      }
+
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.TOOL_CALL,
+        payload: {
+          toolCallId: event.callId,
+          toolName: event.name,
+          parameters: toolArgs,
+        },
+        rawMessage: event,
+      });
+    });
+
+    // Audio events - SDK handles these consistently
+    session.on('audio', (event: any) => {
+      if (event.data && event.data.byteLength > 0) {
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.AUDIO_DELTA,
+          payload: { audio: event.data },
+          rawMessage: event,
+        });
+      }
+    });
+
+    session.on('audio_stopped', () => {
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.AUDIO_DONE,
+        payload: {},
+      });
+    });
+
+    session.on('audio_interrupted', () => {
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.AUDIO_INTERRUPTED,
+        payload: {},
+      });
+    });
+
+    // Response lifecycle events - transport-level
+    // SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
+    transport?.on('turn_started', (event: any) => {
+      const responseId = event?.providerData?.response?.id;
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.RESPONSE_CREATED,
+        payload: { 
+          responseId,
+          response: event?.providerData?.response,
+        },
+        rawMessage: event,
+      });
+      
+      // Reset transcript accumulation for new response
+      if (responseId) {
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.TRANSCRIPT_DELTA,
+          payload: { 
+            transcript: '',
+            role: 'assistant',
+            responseId,
+            itemId: event?.providerData?.response?.output?.[0]?.id,
+          },
+          rawMessage: { ...event, _reset: true },
+        });
+      }
+    });
+
+    transport?.on('turn_done', (event: any) => {
+      const responseId = event?.response?.id;
+      
+      // Extract final AI speech transcript from response output items
+      if (event?.response?.output && Array.isArray(event.response.output)) {
+        for (const outputItem of event.response.output) {
+          if (outputItem.content && Array.isArray(outputItem.content)) {
+            for (const contentPart of outputItem.content) {
+              // Look for audio content parts with transcript (TTS output)
+              if (contentPart.type === 'audio' && contentPart.transcript) {
+                this.callbacks.onMessage?.({
+                  type: RealtimeMessageType.TRANSCRIPT_DONE,
+                  payload: { 
+                    transcript: contentPart.transcript,
+                    role: 'assistant',
+                    responseId,
+                    itemId: outputItem.id,
+                  },
+                  rawMessage: event,
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.RESPONSE_DONE,
+        payload: { 
+          responseId,
+          response: event?.response,
+          usage: event?.response?.usage,
+        },
+        rawMessage: event,
+      });
+    });
+
+    // AI speech transcription (streaming)
+    transport?.on('audio_transcript_delta', (event: any) => {
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.TRANSCRIPT_DELTA,
+        payload: {
+          transcript: event.delta,
+          role: 'assistant',
+          responseId: event.responseId,
+          itemId: event.itemId,
+        },
+        rawMessage: event,
+      });
+    });
+
+    console.log(`✅ [${provider}] SDK session event listeners setup complete`);
+  }
 }

@@ -231,6 +231,10 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
   private setupEventListeners(): void {
     if (!this.session) return;
 
+    // Use base class's consolidated SDK event listeners
+    // This handles: function_call, audio, audio_stopped, audio_interrupted, turn_started, turn_done, audio_transcript_delta
+    this.setupSDKSessionEventListeners();
+
     // SDK 0.8+ has strict typing - transport-level events must be listened on transport, not session
     const session = this.session;
     const transport = session.transport;
@@ -280,7 +284,8 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       }
     });
 
-    // Audio interrupt event (emitted by SDK when user speaks over AI)
+    // Audio interrupt event - keep custom logging for OpenAI
+    // Note: audio_interrupted is now handled by base class, but we keep custom logging
     session.on('audio_interrupted', () => {
       console.log('⚡ [openai] ═══════════════════════════════════════');
       console.log('⚡ [openai] SDK INTERRUPT EVENT RECEIVED');
@@ -301,84 +306,19 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       console.log('⚡ [openai] ═══════════════════════════════════════');
     });
 
-    // Audio events - AI speaking
-    // @openai/agents-realtime normalizes response.output_audio.delta to the high-level
-    // session 'audio' event and response.output_audio.done to 'audio_stopped'.
-    session.on('audio', (event: any) => {
-      // OpenAI SDK auto-plays audio, but we still want to notify SessionManager
-      // so internally-handled providers can still drive speaking UI state.
-      const message: RealtimeMessage = {
-        type: RealtimeMessageType.AUDIO_DELTA,
-        payload: {
-          audio: event.data,
-        },
-        rawMessage: event,
-      };
-      this.callbacks.onMessage?.(message);
-    });
-
-    session.on('audio_stopped', (event: any) => {
-      const message: RealtimeMessage = {
-        type: RealtimeMessageType.AUDIO_DONE,
-        payload: {},
-        rawMessage: event,
-      };
-      this.callbacks.onMessage?.(message);
-    });
+    // Note: audio, audio_stopped, turn_started, turn_done, audio_transcript_delta, and function_call
+    // are now handled by the base class setupSDKSessionEventListeners() call above.
+    // Keep custom logging for turn events as needed below.
 
     // Response lifecycle events - transport-level
     // OpenAI Agents.js SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
+    // Note: These are now handled by base class - keeping for custom logging only
     transport?.on('turn_started', (event: any) => {
       console.log('[openai] 🤖 Turn started (response.created):', event?.providerData?.response?.id);
-      const message: RealtimeMessage = {
-        type: RealtimeMessageType.RESPONSE_CREATED,
-        payload: { 
-          responseId: event?.providerData?.response?.id,
-          response: event?.providerData?.response,
-        },
-        rawMessage: event,
-      };
-      this.callbacks.onMessage?.(message);
     });
 
     transport?.on('turn_done', (event: any) => {
       console.log('[openai] ✅ Turn done (response.done):', event?.response?.id);
-      
-      // Extract final AI speech transcript from response output items
-      if (event?.response?.output && Array.isArray(event.response.output)) {
-        for (const outputItem of event.response.output) {
-          if (outputItem.content && Array.isArray(outputItem.content)) {
-            for (const contentPart of outputItem.content) {
-              // Look for audio content parts with transcript (TTS output)
-              if (contentPart.type === 'audio' && contentPart.transcript) {
-                console.log("📝 [OpenAI] AI transcript done (from turn_done):", contentPart.transcript);
-                const message: RealtimeMessage = {
-                  type: RealtimeMessageType.TRANSCRIPT_DONE,
-                  payload: {
-                    transcript: contentPart.transcript,
-                    role: 'assistant',
-                    responseId: event?.response?.id,
-                    itemId: outputItem.id,
-                  },
-                  rawMessage: event,
-                };
-                this.callbacks.onMessage?.(message);
-              }
-            }
-          }
-        }
-      }
-      
-      const message: RealtimeMessage = {
-        type: RealtimeMessageType.RESPONSE_DONE,
-        payload: { 
-          responseId: event?.response?.id,
-          response: event?.response,
-          usage: event?.response?.usage,
-        },
-        rawMessage: event,
-      };
-      this.callbacks.onMessage?.(message);
     });
 
     // Note: response.cancelled is handled via interrupt() method, not a direct event
@@ -406,35 +346,8 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       console.warn("⚠️ [OpenAI] Session transport not available, cannot listen for transcript events");
     }
 
-    // Function/tool calls from OpenAI SDK - transport-level event
-    transport?.on('response.function_call_arguments.done', (event: any) => {
-      console.log("🔧 [OpenAI] Function call received:");
-      console.log("  Tool Name:", event.name);
-      console.log("  Call ID:", event.call_id);
-      console.log("  Arguments:", event.arguments);
-      console.log("  Full Event:", event);
-      
-      let parsedArgs;
-      try {
-        parsedArgs = JSON.parse(event.arguments);
-        console.log("  Parsed Args:", parsedArgs);
-      } catch (error) {
-        console.error("❌ [OpenAI] Failed to parse tool arguments:", error);
-        parsedArgs = {};
-      }
-      
-      const message: RealtimeMessage = {
-        type: RealtimeMessageType.TOOL_CALL,
-        payload: {
-          toolCallId: event.call_id,
-          toolName: event.name,
-          args: parsedArgs,
-        },
-      };
-      
-      console.log("📤 [OpenAI] Sending tool call message to SessionManager:", message);
-      this.callbacks.onMessage?.(message);
-    });
+    // Note: Tool calls (function_call event) are now handled by base class setupSDKSessionEventListeners()
+    // This uses the SDK's built-in event which properly extracts tool name from response.output_item.done
 
     // Error events with enhanced session timeout handling
     session.on('error', (event: any) => {
@@ -660,7 +573,7 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
    * Convert VowelAction parameter definitions to Zod schema
    * Maps Vowel's parameter types to equivalent Zod validators
    */
-  private convertVowelActionToZod(vowelTool: any): z.ZodType<any> {
+  private convertVowelActionToZod(vowelTool: any): z.ZodObject<any, any> {
     if (!vowelTool.parameters || Object.keys(vowelTool.parameters).length === 0) {
       // No parameters - accept empty object but allow passthrough for resilience
       // This prevents "additionalProperties not allowed" errors

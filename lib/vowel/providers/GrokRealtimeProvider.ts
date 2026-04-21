@@ -62,6 +62,10 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       return;
     }
 
+    // Use base class's consolidated SDK event listeners
+    // This handles: function_call, audio, audio_stopped, audio_interrupted, turn_started, turn_done, audio_transcript_delta
+    this.setupSDKSessionEventListeners();
+
     // SDK 0.8+ has strict typing - transport-level events must be listened on transport, not session
     const session = this.session;
     const transport = session.transport;
