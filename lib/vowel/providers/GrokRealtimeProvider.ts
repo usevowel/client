@@ -127,22 +127,31 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
       }
 
       // xAI uses response.function_call_arguments.done for tool calls (different from OpenAI)
-      if (event.type === 'response.function_call_arguments.done') {
-        console.log('[grok] Function call event:', JSON.stringify(event, null, 2));
+      // BUT - the SDK actually gets the tool name from response.output_item.done
+      // where item.type === 'function_call'. See openaiRealtimeBase.ts line 415.
+      
+      // Handle response.output_item.done with function_call items - this is where the SDK gets the tool name
+      if ((event.type === 'response.output_item.done' || event.type === 'response.output_item.added') && 
+          event.item?.type === 'function_call') {
+        console.log('[grok] Function call item:', JSON.stringify(event, null, 2));
         
-        // xAI uses different property names than OpenAI
-        // Try multiple possible property names for the function name
-        const toolName = event.name || event.function_name || event.functionName || event.tool_name;
-        const toolCallId = event.call_id || event.callId || event.id;
+        const item = event.item;
+        const toolName = item?.name;
+        const toolCallId = item?.call_id;
         
-        console.log('[grok] Function call parsed:', { toolName, toolCallId });
+        console.log('[grok] Function call from output_item:', { toolName, toolCallId });
         
+        if (!toolName) {
+          console.warn('[grok] Function call with no tool name in output_item');
+          return;
+        }
+
         let toolArgs = {};
         try {
-          if (event.arguments) {
-            toolArgs = typeof event.arguments === 'string' 
-              ? JSON.parse(event.arguments) 
-              : event.arguments;
+          if (item?.arguments) {
+            toolArgs = typeof item.arguments === 'string' 
+              ? JSON.parse(item.arguments) 
+              : item.arguments;
           }
         } catch (e) {
           console.warn('[grok] Failed to parse function arguments:', e);
@@ -157,6 +166,11 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
           },
           rawMessage: event,
         });
+      }
+      
+      // Also log but don't handle function_call_arguments.done - it's redundant with output_item
+      if (event.type === 'response.function_call_arguments.done') {
+        console.log('[grok] Function call arguments done (ignored - using output_item instead):', JSON.stringify(event, null, 2));
       }
 
       if (event.type === 'response.cancelled') {
