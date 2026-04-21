@@ -7,6 +7,7 @@ import {
   RealtimeMessageType,
 } from "./RealtimeProvider";
 import { GrokRealtimeWebSocketTransport } from "./GrokRealtimeWebSocketTransport";
+import { createGrokNormalizingWebSocket } from "./grokNormalizingWebSocket";
 import { WebSocketRealtimeProviderBase } from "./WebSocketRealtimeProviderBase";
 
 /**
@@ -236,7 +237,7 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         useInsecureApiKey: true,
         createWebSocket: async ({ url, apiKey }) => {
           const protocols = ['realtime', `xai-client-secret.${apiKey}`];
-          return new WebSocket(url, protocols) as any;
+          return createGrokNormalizingWebSocket(url, protocols) as any;
         },
       });
 

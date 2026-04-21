@@ -1,4 +1,4 @@
-import { RealtimeAgent, RealtimeSession, tool } from '@openai/agents-realtime';
+import { RealtimeAgent, RealtimeSession, tool, type RealtimeAgentConfiguration } from '@openai/agents-realtime';
 import { z } from 'zod';
 import {
   RealtimeProvider,
@@ -27,16 +27,13 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
   protected agent: RealtimeAgent | null = null;
   protected session: RealtimeSession | null = null;
   protected isConnected = false;
-  protected originalAgentConfig: {
-    name: string;
-    tools: any[];
-    instructions: string;
-  } | null = null;
+  protected originalAgentConfig: RealtimeAgentConfiguration | null = null;
   protected pendingToolExecutions: Map<string, (result: any) => void> = new Map();
   protected messageQueue: Array<{ type: 'text' | 'image'; data: string }> = [];
   protected isFullyReady = false;
   protected sessionCreatedResolver: (() => void) | null = null;
   protected voiceMap: Record<string, string>;
+  private pendingToolContinuationTimer: ReturnType<typeof setTimeout> | null = null;
   private hasLoggedAudio = false;
 
   constructor(
@@ -243,6 +240,7 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
     } catch (error) {
       console.error(`❌ [${provider}] Error closing session:`, error);
     } finally {
+      this.clearPendingToolContinuationTimer();
       this.session = null;
       this.agent = null;
       this.pendingToolExecutions.clear();
@@ -391,9 +389,36 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
       resolver(result);
       this.pendingToolExecutions.delete(toolCallId);
       console.log(`✅ [${provider}] Tool response resolved`);
+      // this.scheduleToolResponseContinuation();
     } else {
       console.warn(`⚠️ [${provider}] No pending tool execution found for ${toolCallId}`);
     }
+  }
+
+  private clearPendingToolContinuationTimer(): void {
+    if (this.pendingToolContinuationTimer) {
+      clearTimeout(this.pendingToolContinuationTimer);
+      this.pendingToolContinuationTimer = null;
+    }
+  }
+
+  private scheduleToolResponseContinuation(): void {
+    const provider = this.getLogLabel();
+    this.clearPendingToolContinuationTimer();
+
+    this.pendingToolContinuationTimer = setTimeout(() => {
+      this.pendingToolContinuationTimer = null;
+
+      const transport = (this.session as any)?.transport;
+      const sendEvent = transport?.sendEvent;
+      if (typeof sendEvent !== 'function') {
+        console.warn(`⚠️ [${provider}] Cannot send fallback response.create: transport unavailable`);
+        return;
+      }
+
+      console.log(`📤 [${provider}] Sending fallback response.create after tool response`);
+      sendEvent.call(transport, { type: 'response.create' });
+    }, 100);
   }
 
   protected normalizeMessage(_rawMessage: any): RealtimeMessage | null {
@@ -430,7 +455,7 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
 
     console.log(`📤 [${provider}] Updating agent with new instructions via session.updateAgent()`);
 
-    const newAgentConfig = {
+    const newAgentConfig: RealtimeAgentConfiguration = {
       name: this.originalAgentConfig.name,
       instructions: newInstructions,
       tools: this.originalAgentConfig.tools,
@@ -496,6 +521,7 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
     // Response lifecycle events - transport-level
     // SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
     transport?.on('turn_started', (event: any) => {
+      this.clearPendingToolContinuationTimer();
       const responseId = event?.providerData?.response?.id;
       this.callbacks.onMessage?.({
         type: RealtimeMessageType.RESPONSE_CREATED,
