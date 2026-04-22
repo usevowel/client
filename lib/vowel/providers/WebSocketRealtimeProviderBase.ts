@@ -389,7 +389,6 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
       resolver(result);
       this.pendingToolExecutions.delete(toolCallId);
       console.log(`✅ [${provider}] Tool response resolved`);
-      // this.scheduleToolResponseContinuation();
     } else {
       console.warn(`⚠️ [${provider}] No pending tool execution found for ${toolCallId}`);
     }
@@ -400,25 +399,6 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
       clearTimeout(this.pendingToolContinuationTimer);
       this.pendingToolContinuationTimer = null;
     }
-  }
-
-  private scheduleToolResponseContinuation(): void {
-    const provider = this.getLogLabel();
-    this.clearPendingToolContinuationTimer();
-
-    this.pendingToolContinuationTimer = setTimeout(() => {
-      this.pendingToolContinuationTimer = null;
-
-      const transport = (this.session as any)?.transport;
-      const sendEvent = transport?.sendEvent;
-      if (typeof sendEvent !== 'function') {
-        console.warn(`⚠️ [${provider}] Cannot send fallback response.create: transport unavailable`);
-        return;
-      }
-
-      console.log(`📤 [${provider}] Sending fallback response.create after tool response`);
-      sendEvent.call(transport, { type: 'response.create' });
-    }, 100);
   }
 
   protected normalizeMessage(_rawMessage: any): RealtimeMessage | null {
@@ -498,16 +478,22 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
       if (event.data && event.data.byteLength > 0) {
         this.callbacks.onMessage?.({
           type: RealtimeMessageType.AUDIO_DELTA,
-          payload: { audio: event.data },
+          payload: {
+            audio: event.data,
+            responseId: event.responseId,
+          },
           rawMessage: event,
         });
       }
     });
 
-    session.on('audio_stopped', () => {
+    session.on('audio_stopped', (event: any) => {
       this.callbacks.onMessage?.({
         type: RealtimeMessageType.AUDIO_DONE,
-        payload: {},
+        payload: {
+          responseId: event?.responseId,
+        },
+        rawMessage: event,
       });
     });
 
@@ -520,6 +506,22 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
 
     // Response lifecycle events - transport-level
     // SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
+    session.on('transport_event', (event: any) => {
+      if (event.type !== 'response.done' || event.response?.status !== 'cancelled') {
+        return;
+      }
+
+      const responseId = event.response.id;
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.RESPONSE_CANCELLED,
+        payload: {
+          responseId,
+          response: event.response,
+        },
+        rawMessage: event,
+      });
+    });
+
     transport?.on('turn_started', (event: any) => {
       this.clearPendingToolContinuationTimer();
       const responseId = event?.providerData?.response?.id;

@@ -182,6 +182,8 @@ export class SessionManager {
   private processedResponseIds: Set<string> = new Set();
   private processedResponseDoneIds: Set<string> = new Set();
   private readonly MAX_PROCESSED_RESPONSE_IDS: number = 100; // Prevent memory leaks
+  private activeResponseId: string | null = null;
+  private cancelledResponseIds: Set<string> = new Set();
   private assistantAudioWatchdogTimeout: ReturnType<typeof setTimeout> | null = null;
   private readonly ASSISTANT_AUDIO_WATCHDOG_MS = 4000;
   
@@ -829,6 +831,7 @@ export class SessionManager {
           }
           
           this.isResponseInProgress = true;
+          this.activeResponseId = responseId || null;
           
           // User is no longer speaking when AI starts responding
           this.setClientSpeechActive(false, "response created");
@@ -882,6 +885,9 @@ export class SessionManager {
           console.log("✅ [SessionManager] Current tool executing state:", this.isToolExecuting);
           
           this.isResponseInProgress = false;
+          if (!doneResponseId || this.activeResponseId === doneResponseId) {
+            this.activeResponseId = null;
+          }
           this.setAssistantAudioActive(false, "response done");
           
           // Clear thinking state - thinking lasts from turn_started to turn_done
@@ -907,7 +913,22 @@ export class SessionManager {
 
         case RealtimeMessageType.RESPONSE_CANCELLED:
           // Response was cancelled - clear states
+          const cancelledResponseId = message.payload?.responseId;
+          if (cancelledResponseId) {
+            this.cancelledResponseIds.add(cancelledResponseId);
+            if (this.cancelledResponseIds.size > this.MAX_PROCESSED_RESPONSE_IDS) {
+              const iterator = this.cancelledResponseIds.values();
+              const firstId = iterator.next().value as string | undefined;
+              if (firstId) {
+                this.cancelledResponseIds.delete(firstId);
+              }
+            }
+          }
           this.isResponseInProgress = false;
+          if (!cancelledResponseId || this.activeResponseId === cancelledResponseId) {
+            this.activeResponseId = null;
+          }
+          this.config.audioManager.stopAllAudio();
           this.setAssistantAudioActive(false, "response cancelled");
           if (this.isAIThinking) {
             this.updateThinkingState(false);
@@ -920,6 +941,15 @@ export class SessionManager {
           break;
 
         case RealtimeMessageType.AUDIO_DELTA:
+          if (this.shouldIgnoreAudioForResponse(message.payload?.responseId)) {
+            console.log("🚫 [SessionManager] Ignoring stale audio delta", {
+              responseId: message.payload?.responseId,
+              activeResponseId: this.activeResponseId,
+              isResponseInProgress: this.isResponseInProgress,
+            });
+            break;
+          }
+
           // Play audio chunk (skip if provider handles audio internally)
           if (this.provider && !this.provider.handlesAudioInternally()) {
             // Payload can be either base64 string (delta) or ArrayBuffer (audio)
@@ -935,6 +965,15 @@ export class SessionManager {
           break;
 
         case RealtimeMessageType.AUDIO_DONE:
+          if (this.shouldIgnoreAudioForResponse(message.payload?.responseId)) {
+            console.log("🚫 [SessionManager] Ignoring stale audio done", {
+              responseId: message.payload?.responseId,
+              activeResponseId: this.activeResponseId,
+              isResponseInProgress: this.isResponseInProgress,
+            });
+            break;
+          }
+
           // Audio playback complete - speaking ends
           // If response is still in progress, thinking should resume (already active)
           this.setAssistantAudioActive(false, "done");
@@ -956,6 +995,8 @@ export class SessionManager {
           
           // Stop all audio playback
           this.config.audioManager.stopAllAudio();
+          this.isResponseInProgress = false;
+          this.activeResponseId = null;
           this.setAssistantAudioActive(false, "interrupted");
           
           // Clear thinking and tool execution states on interrupt
@@ -1109,6 +1150,18 @@ export class SessionManager {
     } catch (error) {
       console.error("❌ Error handling provider message:", error);
     }
+  }
+
+  private shouldIgnoreAudioForResponse(responseId?: string): boolean {
+    if (responseId && this.cancelledResponseIds.has(responseId)) {
+      return true;
+    }
+
+    if (responseId && this.activeResponseId && responseId !== this.activeResponseId) {
+      return true;
+    }
+
+    return !responseId && !this.isResponseInProgress;
   }
 
   /**

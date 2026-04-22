@@ -261,6 +261,19 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
 
     // Transport events - SDK wraps some events in transport_event
     session.on('transport_event', (event: any) => {
+      if (event.type === 'response.done' && event.response?.status === 'cancelled') {
+        const message: RealtimeMessage = {
+          type: RealtimeMessageType.RESPONSE_CANCELLED,
+          payload: {
+            responseId: event.response.id,
+            response: event.response,
+          },
+          rawMessage: event,
+        };
+        this.callbacks.onMessage?.(message);
+        return;
+      }
+
       // User speech transcription - SDK wraps conversation.item.input_audio_transcription.completed
       if (event.type === 'conversation.item.input_audio_transcription.completed') {
         const transcript = event.transcript;
@@ -311,6 +324,7 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
         type: RealtimeMessageType.AUDIO_DELTA,
         payload: {
           audio: event.data,
+          responseId: event.responseId,
         },
         rawMessage: event,
       };
@@ -320,7 +334,9 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     session.on('audio_stopped', (event: any) => {
       const message: RealtimeMessage = {
         type: RealtimeMessageType.AUDIO_DONE,
-        payload: {},
+        payload: {
+          responseId: event?.responseId,
+        },
         rawMessage: event,
       };
       this.callbacks.onMessage?.(message);
@@ -380,8 +396,7 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
       this.callbacks.onMessage?.(message);
     });
 
-    // Note: response.cancelled is handled via interrupt() method, not a direct event
-    // The SDK handles cancellation internally when interrupt() is called or when user speaks over AI
+    // response.done(status=cancelled) is handled via transport_event above.
 
     // AI speech transcription (streaming) - emitted as AI speaks
     // CRITICAL: audio_transcript_delta is a transport-level event in SDK 0.8+
@@ -829,11 +844,10 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     }
 
     try {
-      // Note: TypeScript definitions incomplete for send(), but method exists at runtime
-      const session = this.session as any;
-      
-      // Cancel the current response
-      session.send('response.cancel', {});
+      // RealtimeSession.interrupt() delegates to the transport-specific interrupt
+      // implementation. For WebRTC this also clears the output audio buffer, whereas
+      // sending only response.cancel lets already-buffered speech continue playing.
+      this.session.interrupt();
     } catch (error) {
       console.error("❌ [OpenAI] Error interrupting:", error);
     }
@@ -985,7 +999,6 @@ export class OpenAIRealtimeProvider extends RealtimeProvider {
     return this.isConnected;
   }
 }
-
 
 
 
