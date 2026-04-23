@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### WebMCP (Web Model Context Protocol)
+
+Integrated **WebMCP** with the client so tools can be shared with browser Model Context surfaces and, optionally, page-registered tools can be pulled into the voice session.
+
+**Features:**
+- **`webMCP` config** on `VowelClientConfig` — `enableDiscovery` (discover WebMCP tools as Vowel actions) and `enableExposure` (expose Vowel `registerAction` tools via `navigator.modelContext.registerTool`, default on).
+- **Discovery** — `discoverWebMCPTools()` uses the testing API (`modelContextTesting.getTools`) when present, and falls back to `window.__webmcp_tools` for hosts that expose a global registry.
+- **Exposure** — `registerVowelActionAsWebMCP` and cleanup via `AbortController`; legacy and WebMCP JSON Schema action shapes supported with conversion utilities in `lib/vowel/webmcp/`.
+- **`rediscoverWebMCPTools()`** — re-run discovery after dynamic registration on the page.
+
+**Notes:** Native `navigator.modelContext` is experimental; Chromium builds with the appropriate flags may be required. When the API is absent, exposure is skipped; discovery paths may still work depending on the host.
+
 #### STT/TTS Provider Selection via Token Configuration
 
 Added support for configuring speech-to-text (STT) and text-to-speech (TTS) providers through the token system, allowing runtime selection of speech providers without requiring preset changes.
