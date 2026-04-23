@@ -13,6 +13,21 @@ type CssAwareChunk = {
   };
 };
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function stripCssRuntimeImports(code: string, cssFiles: string[]): string {
+  return cssFiles.reduce((updatedCode, cssFile) => {
+    const escapedCssFile = escapeRegExp(cssFile);
+    const escapedRelativeCssFile = escapeRegExp(`./${cssFile}`);
+
+    return updatedCode
+      .replace(new RegExp(`\\s*import\\s+["'](?:${escapedRelativeCssFile}|${escapedCssFile})["'];?`, 'g'), '')
+      .replace(new RegExp(`\\s*require\\(["'](?:${escapedRelativeCssFile}|${escapedCssFile})["']\\);?`, 'g'), '');
+  }, code);
+}
+
 function embedVowelCssInJs(): Plugin {
   const styleId = 'vowel-client-styles';
 
@@ -83,6 +98,7 @@ function embedVowelCssInJs(): Plugin {
         chunk.code = chunk.code.startsWith(useStrictDirective)
           ? useStrictDirective + injectionCode + chunk.code.slice(useStrictDirective.length)
           : injectionCode + chunk.code;
+        chunk.code = stripCssRuntimeImports(chunk.code, cssFiles);
       }
     },
   };

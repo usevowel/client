@@ -18,6 +18,13 @@ Add a voice agent to your web app with top-level `apiKey`/`appId` token-issuer i
 - [Community](https://discord.gg/3gpfZsCm)
 - [Videos](https://www.youtube.com/@voweldotto)
 
+## Core features
+
+- **Realtime voice** — Gemini Live–compatible sessions with mic, playback, and tool use.
+- **Router-aware adapters** — Navigation and optional DOM automation so the agent can move through your app like a user.
+- **Client-side actions** — `registerAction()` runs your app code when the model calls a tool (low latency, no server round-trip for business logic).
+- **WebMCP (Web Model Context Protocol)** — First-class bridge between vowel and the browser’s Model Context surfaces: **expose** your vowel actions as WebMCP tools, and **discover** tools the host page (or browser) already registered so the voice agent can call them. See [WebMCP](#webmcp-web-model-context-protocol) below.
+
 ## Install
 
 ```bash
@@ -67,6 +74,56 @@ await vowel.startSession();
 ```
 
 Register actions **before** calling `startSession()`. See [Connection Paradigms](https://docs.vowel.to/recipes/connection-paradigms) for token flows and backend-issued tokens.
+
+## WebMCP (Web Model Context Protocol)
+
+WebMCP is a **core part of the client**: the same `registerAction` tools your voice agent uses can participate in the browser’s WebMCP ecosystem, and tools registered elsewhere on the page can be pulled into the session as vowel actions.
+
+- **`enableExposure`** (default: `true`) — After you `registerAction`, vowel also registers that tool with `navigator.modelContext.registerTool` when the native WebMCP API is available, so MCP-compatible agents in the browser can invoke your app logic.
+- **`enableDiscovery`** (default: `false`) — On startup (and when you call `rediscoverWebMCPTools()`), vowel discovers tools from the host (testing API or a `window.__webmcp_tools` registry) and registers them as vowel actions the model can call over voice.
+
+Native availability depends on the browser (experimental flags may apply); if WebMCP is not present, voice sessions and `registerAction` behave as usual—WebMCP is an additive layer.
+
+```ts
+import { Vowel, createNextJSAdapters } from '@vowel.to/client';
+import { useRouter } from 'next/navigation';
+
+const router = useRouter();
+const { navigationAdapter, automationAdapter } = createNextJSAdapters(router, {
+  routes: [
+    { path: '/', description: 'Home page' },
+    { path: '/settings', description: 'Account settings' },
+  ],
+  enableAutomation: true,
+});
+
+const vowel = new Vowel({
+  apiKey: 'your-api-key',
+  navigationAdapter,
+  automationAdapter,
+  language: 'en-US',
+  initialGreetingPrompt:
+    'You can use voice to navigate and run tools exposed via WebMCP on this page.',
+  webMCP: {
+    enableExposure: true, // expose registerAction tools to WebMCP (default)
+    enableDiscovery: true, // ingest host WebMCP tools as vowel actions
+  },
+});
+
+vowel.registerAction(
+  'summarizePage',
+  {
+    description: 'Summarize the visible page for the user',
+    parameters: {},
+  },
+  async () => ({ success: true, summary: '…' })
+);
+
+await vowel.startSession();
+
+// After the host registers new WebMCP tools dynamically (e.g. route change):
+await vowel.rediscoverWebMCPTools();
+```
 
 ## Session APIs
 

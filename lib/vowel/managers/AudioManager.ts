@@ -88,6 +88,9 @@ export class AudioManager {
   private config: AudioManagerConfig;
   private isAISpeaking: boolean = false;
   private playbackGeneration: number = 0; // Invalidates queued/in-flight audio from interrupted turns
+  private provisionalInterruptPaused = false;
+  private provisionalInterruptAudioQueue: Array<string | ArrayBuffer> = [];
+  private provisionalInterruptResumeTimer: ReturnType<typeof setTimeout> | null = null;
   private isMuted: boolean = false;
   private selectedDeviceId: string | null = null;
   private currentDevice: MediaDeviceInfo | null = null;
@@ -942,6 +945,12 @@ export class AudioManager {
    * @param audioData - Either base64 string or ArrayBuffer
    */
   async playAudio(audioData: string | ArrayBuffer): Promise<void> {
+    if (this.provisionalInterruptPaused) {
+      this.provisionalInterruptAudioQueue.push(audioData);
+      console.log("⏸️ [AudioManager] Queued AI audio during provisional interrupt");
+      return;
+    }
+
     if (!this.refs.outputContext) {
       console.warn("Output audio context not initialized");
       return;
@@ -1020,6 +1029,62 @@ export class AudioManager {
       this.audioSources.add(source);
     } catch (error) {
       console.error("❌ Failed to play audio:", error);
+    }
+  }
+
+  beginProvisionalInterrupt(): void {
+    if (this.provisionalInterruptPaused) {
+      return;
+    }
+
+    this.provisionalInterruptPaused = true;
+    this.provisionalInterruptAudioQueue = [];
+    if (this.provisionalInterruptResumeTimer) {
+      clearTimeout(this.provisionalInterruptResumeTimer);
+    }
+    this.provisionalInterruptResumeTimer = setTimeout(() => {
+      void this.endProvisionalInterrupt(false);
+    }, 1500);
+    const sourcesCount = this.audioSources.size;
+    console.log("⏸️ [AudioManager] Pausing AI audio for provisional interrupt", { sourcesCount });
+
+    for (const source of this.audioSources.values()) {
+      try {
+        source.stop();
+      } catch (error) {
+        console.warn('⚠️ [AudioManager] Error stopping provisional interrupt source:', error);
+      }
+    }
+    this.audioSources.clear();
+    this.nextStartTime = 0;
+
+    if (this.isAISpeaking) {
+      this.isAISpeaking = false;
+      this.config.onAISpeakingChange?.(false);
+    }
+  }
+
+  async endProvisionalInterrupt(discardQueuedAudio: boolean = false): Promise<void> {
+    if (!this.provisionalInterruptPaused) {
+      return;
+    }
+
+    const queuedAudio = this.provisionalInterruptAudioQueue;
+    this.provisionalInterruptPaused = false;
+    this.provisionalInterruptAudioQueue = [];
+    if (this.provisionalInterruptResumeTimer) {
+      clearTimeout(this.provisionalInterruptResumeTimer);
+      this.provisionalInterruptResumeTimer = null;
+    }
+
+    if (discardQueuedAudio) {
+      console.log("🚫 [AudioManager] Discarded queued provisional interrupt audio", { count: queuedAudio.length });
+      return;
+    }
+
+    console.log("▶️ [AudioManager] Resuming AI audio after provisional interrupt", { count: queuedAudio.length });
+    for (const audioData of queuedAudio) {
+      await this.playAudio(audioData);
     }
   }
 
@@ -1130,6 +1195,12 @@ export class AudioManager {
     
     // Invalidate any queued or in-flight audio decode from the interrupted turn.
     this.playbackGeneration += 1;
+    this.provisionalInterruptPaused = false;
+    this.provisionalInterruptAudioQueue = [];
+    if (this.provisionalInterruptResumeTimer) {
+      clearTimeout(this.provisionalInterruptResumeTimer);
+      this.provisionalInterruptResumeTimer = null;
+    }
     console.log(`🚫 [AudioManager] Playback generation advanced to ${this.playbackGeneration}`);
     
     // Stop and remove all audio sources

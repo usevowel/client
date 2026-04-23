@@ -786,6 +786,9 @@ export class SessionManager {
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STARTED:
           // Server-side VAD detected user started speaking
           this.setServerSpeechActive(true, "started");
+          if (this.isResponseInProgress) {
+            this.config.audioManager.beginProvisionalInterrupt();
+          }
           if (this.getHiddenVoiceConfig()?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🗣️ [SessionManager] User started speaking (server VAD)");
             this.config.onUserSpeakingChange?.(true);
@@ -795,6 +798,7 @@ export class SessionManager {
         case RealtimeMessageType.AUDIO_BUFFER_SPEECH_STOPPED:
           // Server-side VAD detected user stopped speaking
           this.setServerSpeechActive(false, "stopped");
+          void this.config.audioManager.endProvisionalInterrupt(false);
           this.userStoppedSpeakingTime = Date.now();
           if (this.getHiddenVoiceConfig()?.useServerVad || ENABLE_SERVER_VAD_UI_UPDATES) {
             console.log("🔇 [SessionManager] User stopped speaking (server VAD)");
@@ -929,6 +933,7 @@ export class SessionManager {
             this.activeResponseId = null;
           }
           this.config.audioManager.stopAllAudio();
+          void this.config.audioManager.endProvisionalInterrupt(true);
           this.setAssistantAudioActive(false, "response cancelled");
           if (this.isAIThinking) {
             this.updateThinkingState(false);

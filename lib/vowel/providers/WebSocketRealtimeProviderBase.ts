@@ -507,16 +507,32 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
     // Response lifecycle events - transport-level
     // SDK uses 'turn_started' and 'turn_done' instead of 'response.created' and 'response.done'
     session.on('transport_event', (event: any) => {
-      if (event.type !== 'response.done' || event.response?.status !== 'cancelled') {
+      const isCancelledResponse =
+        event.type === 'response.cancelled' ||
+        (event.type === 'response.done' && event.response?.status === 'cancelled');
+
+      if (!isCancelledResponse) {
         return;
       }
 
-      const responseId = event.response.id;
+      const responseId = event.response?.id;
       this.callbacks.onMessage?.({
         type: RealtimeMessageType.RESPONSE_CANCELLED,
         payload: {
           responseId,
           response: event.response,
+        },
+        rawMessage: event,
+      });
+    });
+
+    transport?.on('response.cancelled', (event: any) => {
+      const responseId = event?.response?.id;
+      this.callbacks.onMessage?.({
+        type: RealtimeMessageType.RESPONSE_CANCELLED,
+        payload: {
+          responseId,
+          response: event?.response,
         },
         rawMessage: event,
       });
