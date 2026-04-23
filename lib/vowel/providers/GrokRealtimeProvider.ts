@@ -106,6 +106,19 @@ export class GrokRealtimeProvider extends WebSocketRealtimeProviderBase {
         });
       }
 
+      if (event.type === 'conversation.item.input_audio_transcription.delta' && event.delta) {
+        this.callbacks.onMessage?.({
+          type: RealtimeMessageType.TRANSCRIPT_DELTA,
+          payload: {
+            transcript: event.delta,
+            text: event.delta,
+            role: 'user',
+            itemId: event.item_id,
+          },
+          rawMessage: event,
+        });
+      }
+
       if (event.type === 'conversation.item.input_audio_transcription.completed' && event.transcript) {
         this.callbacks.onMessage?.({
           type: RealtimeMessageType.TRANSCRIPT_DONE,

@@ -168,6 +168,23 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
         });
       }
       
+      // User speech transcription — streaming partials (OpenAI Realtime / Agents SDK)
+      if (event.type === 'conversation.item.input_audio_transcription.delta') {
+        const delta = event.delta;
+        if (delta) {
+          this.callbacks.onMessage?.({
+            type: RealtimeMessageType.TRANSCRIPT_DELTA,
+            payload: {
+              transcript: delta,
+              text: delta,
+              role: 'user',
+              itemId: event.item_id,
+            },
+            rawMessage: event,
+          });
+        }
+      }
+
       // User speech transcription - SDK wraps this in transport_event
       if (event.type === 'conversation.item.input_audio_transcription.completed') {
         const transcript = event.transcript;
