@@ -660,6 +660,21 @@ export interface VowelVoiceConfig {
    * @default "balanced"
    */
   turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
+
+  /**
+   * DEV-ONLY: STT provider override.
+   * Sent to the token issuer / engine for developer testing.
+   * Not a public API — do not rely on this in production.
+   * @internal
+   */
+  stt?: { provider: string };
+  /**
+   * DEV-ONLY: TTS provider override.
+   * Sent to the token issuer / engine for developer testing.
+   * Not a public API — do not rely on this in production.
+   * @internal
+   */
+  tts?: { provider: string };
 }
 
 /**
