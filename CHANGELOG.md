@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+#### Explicit STT/TTS Override Config Types
+
+- Replaced anonymous inline `{ provider: string }` types with named `SttOverrideConfig` and `TtsOverrideConfig` interfaces for `voiceConfig.stt` and `voiceConfig.tts`.
+- Both new types are exported from `@vowel.to/client` and marked `@internal`.
+
+## [0.4.2-beta] - 2026-05-10
+
 ### Added
 
 #### WebMCP (Web Model Context Protocol)
@@ -44,7 +53,7 @@ This capability is a **development-only feature** subject to the same dev flags 
 In production, speech providers should be configured through app presets, not client token overrides. This ensures consistent behavior and prevents configuration drift.
 
 **Technical Details:**
-- Added `SpeechProviderSelection` interface with `provider`, `model`, `language`, and `voice` fields
+- Added `SttOverrideConfig` and `TtsOverrideConfig` interfaces with `provider` field
 - Token generation endpoints (Core and Platform) now accept and forward stt/tts configuration
 - Engine's session bootstrap extracts provider config from token and applies it to session
 

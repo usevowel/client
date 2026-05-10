@@ -579,6 +579,28 @@ export interface VowelPrimeConfig {
 
 export type VowelTurnDetectionPreset = 'aggressive' | 'balanced' | 'conservative';
 
+/**
+ * DEV-ONLY: STT provider override configuration.
+ * Sent to the token issuer / engine for developer testing.
+ * Not a public API — do not rely on this in production.
+ * @internal
+ */
+export interface SttOverrideConfig {
+  /** Provider name (e.g. "deepgram", "groq-whisper", "assemblyai", "none") */
+  provider: string;
+}
+
+/**
+ * DEV-ONLY: TTS provider override configuration.
+ * Sent to the token issuer / engine for developer testing.
+ * Not a public API — do not rely on this in production.
+ * @internal
+ */
+export interface TtsOverrideConfig {
+  /** Provider name (e.g. "deepgram", "inworld", "grok", "none") */
+  provider: string;
+}
+
 export interface VowelVoiceConfig {
   /** Ephemeral token for direct connections (bypasses token endpoint) */
   token?: string;
@@ -667,14 +689,14 @@ export interface VowelVoiceConfig {
    * Not a public API — do not rely on this in production.
    * @internal
    */
-  stt?: { provider: string };
+  stt?: SttOverrideConfig;
   /**
    * DEV-ONLY: TTS provider override.
    * Sent to the token issuer / engine for developer testing.
    * Not a public API — do not rely on this in production.
    * @internal
    */
-  tts?: { provider: string };
+  tts?: TtsOverrideConfig;
 }
 
 /**

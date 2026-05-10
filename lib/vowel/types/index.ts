@@ -3,6 +3,8 @@
  */
 
 export type {
+  SttOverrideConfig,
+  TtsOverrideConfig,
   VowelRoute,
   VowelAction,
   VowelLegacyAction,
