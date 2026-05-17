@@ -78,7 +78,7 @@ export abstract class WebSocketRealtimeProviderBase extends RealtimeProvider {
   }
 
   protected getDefaultTurnDetectionMode(): 'client_vad' | 'server_vad' | 'disabled' {
-    return 'client_vad';
+    return 'server_vad';
   }
 
   protected getResolvedTurnDetectionMode(): 'client_vad' | 'server_vad' | 'disabled' {

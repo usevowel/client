@@ -454,7 +454,7 @@ export class VowelPrimeRealtimeProvider extends WebSocketRealtimeProviderBase {
       // Create the session with WebSocket transport
       // Respect turnDetection config from metadata (passed from SessionManager)
       const turnDetection = this.config.metadata?.turnDetection as any;
-      const turnDetectionMode = turnDetection?.mode ?? 'client_vad';
+      const turnDetectionMode = turnDetection?.mode ?? 'server_vad';
       const inputAudioFormat = this.getInputAudioFormat();
       const outputAudioFormat = this.getOutputAudioFormat();
       

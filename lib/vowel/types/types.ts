@@ -452,7 +452,7 @@ export interface ClientVADConfig {
 export interface TurnDetectionConfig {
   /**
    * Detection mode
-   * @default 'client_vad'
+   * @default 'server_vad'
    */
   mode: TurnDetectionMode;
   
@@ -634,8 +634,8 @@ export interface VowelVoiceConfig {
   speakingRate?: number;
   /** 
    * VAD type - "simple" uses energy-based detection (fast), "silero" uses ML model (accurate), "none" disables client-side VAD
-   * @default undefined (deprecated - use turnDetection.mode instead, which defaults to 'client_vad')
-   * @deprecated Use turnDetection instead. The default is now 'client_vad' mode with 'silero-vad' adapter.
+   * @default undefined (deprecated - use turnDetection.mode instead, which defaults to 'server_vad')
+   * @deprecated Use turnDetection instead. The default is now 'server_vad' mode.
    */
   vadType?: VADType;
   /** Use server-side VAD events for UI updates (default: false) - when true, uses server VAD events instead of client-side VAD for speaking state */

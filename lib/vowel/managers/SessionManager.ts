@@ -1410,8 +1410,7 @@ export class SessionManager {
       }
       
       // Resolve turnDetection config with defaults
-      const defaultTurnDetectionMode =
-        this.getHiddenVoiceConfig()?.provider === 'grok' ? 'server_vad' : 'client_vad';
+      const defaultTurnDetectionMode = 'server_vad';
       const turnDetectionMode =
         this.getHiddenVoiceConfig()?.turnDetection?.mode ?? defaultTurnDetectionMode;
       const resolvedTurnDetection = {
@@ -1668,8 +1667,7 @@ export class SessionManager {
             this.initTimings.vadStart = Date.now();
             
             // Check turnDetection config to determine which VAD system to use
-            const defaultTurnDetectionMode =
-              this.getHiddenVoiceConfig()?.provider === 'grok' ? 'server_vad' : 'client_vad';
+            const defaultTurnDetectionMode = 'server_vad';
             const turnDetectionMode =
               this.getHiddenVoiceConfig()?.turnDetection?.mode ?? defaultTurnDetectionMode;
             
