@@ -806,6 +806,38 @@ export interface FloatingCursorUpdate {
 }
 
 /**
+ * Echo suppression configuration for preventing the AI from hearing its own voice.
+ *
+ * Uses residual-based barge-in detection: cross-correlates mic frames against
+ * a ring buffer of playback audio to distinguish real user speech from speaker echo.
+ *
+ * @default { mode: 'auto' } — client barge-in for WebSocket providers, engine-side gating for all
+ */
+export interface EchoSuppressionConfig {
+  /** Echo suppression mode
+   * - 'off': No echo suppression (current behavior)
+   * - 'client': Client-side barge-in detector only
+   * - 'server': Engine-side output gating only
+   * - 'auto': Client barge-in (WebSocket providers) + engine gating (all providers)
+   * @default 'auto'
+   */
+  mode?: 'off' | 'client' | 'server' | 'auto';
+  /** Detection thresholds (defaults from pibot field testing) */
+  thresholds?: {
+    /** Min mic RMS to consider "someone is speaking" @default 0.018 */
+    micRms?: number;
+    /** Min fraction of mic energy unexplained by echo @default 0.62 */
+    residualRatio?: number;
+    /** Consecutive triggered frames before barge-in fires @default 5 */
+    triggerFrames?: number;
+  };
+  /** Mic preroll buffer size in seconds for utterance onset capture @default 1.0 */
+  prerollSeconds?: number;
+  /** Playback reference buffer size in seconds @default 8.0 */
+  referenceSeconds?: number;
+}
+
+/**
  * Vowel client configuration
  */
 export interface VowelClientConfig {
@@ -1090,6 +1122,9 @@ export interface VowelClientConfig {
     /** Expose Vowel actions as WebMCP tools (default: true) */
     enableExposure?: boolean;
   };
+
+  /** Echo suppression / barge-in detection configuration @default { mode: 'auto' } */
+  echoSuppression?: EchoSuppressionConfig;
 }
 
 

@@ -22,6 +22,8 @@
 
 import type { RealtimeProvider } from "../providers/RealtimeProvider";
 import type { EnhancedVADManager } from "./EnhancedVADManager";
+import { BargeInDetector } from "./BargeInDetector";
+import type { EchoSuppressionConfig } from "../types/types";
 // Import worklet as raw JavaScript string for inline bundling
 // Using .js file to avoid TypeScript syntax issues in AudioWorklet context
 // @ts-ignore - Vite will handle this
@@ -95,6 +97,9 @@ export class AudioManager {
   private selectedDeviceId: string | null = null;
   private currentDevice: MediaDeviceInfo | null = null;
   private enhancedVADManager: EnhancedVADManager | null = null;
+  private bargeInDetector: BargeInDetector | null = null;
+  private echoSuppressionMode: 'off' | 'client' | 'server' | 'auto' = 'off';
+  private pendingEchoConfig: EchoSuppressionConfig | undefined;
   private frameTimestamp: number = 0;
   private clientVADAudioBuffer: string[] = []; // Buffer original provider-rate audio chunks when client VAD is active
   private rollingAudioBuffer: string[] = []; // Rolling buffer for pre-speech audio capture
@@ -554,6 +559,11 @@ export class AudioManager {
     const inputAudioFormat = provider.getInputAudioFormat();
     const outputAudioFormat = provider.getOutputAudioFormat();
 
+    // Apply pending echo suppression config now that mic sample rate is known
+    if (this.pendingEchoConfig) {
+      this.setEchoSuppression(this.pendingEchoConfig, inputAudioFormat.sampleRate);
+    }
+
     await this.ensureOutputAudioContext(outputAudioFormat.sampleRate);
 
     // Use provided deviceId or fall back to stored preference
@@ -875,6 +885,37 @@ export class AudioManager {
           return;
         }
 
+        // Barge-in echo suppression: when AI is speaking and detector is active,
+        // cross-correlate mic frame against playback reference to filter echo.
+        if (this.bargeInDetector && this.isAISpeaking) {
+          const bin = atob(base64Data);
+          const u8 = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+          const int16 = new Int16Array(u8.buffer);
+          const float32 = new Float32Array(int16.length);
+          for (let i = 0; i < int16.length; i++) float32[i] = int16[i] / 32768.0;
+
+          const result = this.bargeInDetector.observeMic(
+            float32,
+            inputAudioFormat.sampleRate,
+            int16,
+            true,
+          );
+
+          if (result.triggered) {
+            // Real user speech detected — flush preroll, then send this frame
+            if (result.preroll && result.preroll.length > 0) {
+              const prerollBase64 = this.encodeInt16ToBase64(result.preroll);
+              this.providerRef.sendAudio(prerollBase64, inputAudioFormat);
+            }
+            this.bargeInDetector.resetStreaming();
+            // Fall through to send the current frame normally
+          } else {
+            // Echo detected — drop this frame
+            return;
+          }
+        }
+
         // Send to provider (server-side VAD or disabled mode)
         this.providerRef.sendAudio(base64Data, inputAudioFormat);
       }
@@ -1004,6 +1045,13 @@ export class AudioManager {
 
       const source = this.refs.outputContext.createBufferSource();
       source.buffer = audioBuffer;
+      
+      // Feed playback audio to barge-in detector as echo reference
+      if (this.bargeInDetector) {
+        const playSamples = audioBuffer.getChannelData(0);
+        this.bargeInDetector.handlePlaybackAudio(playSamples, audioBuffer.sampleRate);
+      }
+      
       // Route audio: when RTC loopback is disabled, use direct destination playback
       // Otherwise connect through outputNode which routes through MediaStreamDestination
       // and RTC loopback for echo cancellation
@@ -1565,5 +1613,58 @@ export class AudioManager {
     } else {
       console.log("ℹ️ [AudioManager] EnhancedVADManager disconnected");
     }
+  }
+
+  /**
+   * Configure echo suppression / barge-in detection.
+   * Creates a BargeInDetector that cross-correlates mic frames against
+   * playback audio to prevent the AI from hearing its own TTS output.
+   */
+  setEchoSuppression(config: EchoSuppressionConfig | undefined, micSampleRate: number): void {
+    if (!config || config.mode === 'off') {
+      this.bargeInDetector = null;
+      this.echoSuppressionMode = 'off';
+      return;
+    }
+
+    this.echoSuppressionMode = config.mode ?? 'auto';
+    const handlesAudioInternally = this.providerRef?.handlesAudioInternally() ?? false;
+
+    // For WebRTC providers (OpenAI/Grok), client-side barge-in is limited
+    // because the SDK manages audio internally. Only enable the detector
+    // for WebSocket providers or when explicitly in 'client' mode.
+    if (handlesAudioInternally && this.echoSuppressionMode === 'auto') {
+      this.bargeInDetector = null;
+      console.log("🔇 [AudioManager] Echo suppression: engine-side only (WebRTC provider)");
+      return;
+    }
+
+    this.bargeInDetector = new BargeInDetector(micSampleRate, {
+      micThreshold: config.thresholds?.micRms,
+      residualThreshold: config.thresholds?.residualRatio,
+      triggerFrames: config.thresholds?.triggerFrames,
+      prerollSeconds: config.prerollSeconds,
+      referenceSeconds: config.referenceSeconds,
+    });
+    console.log(`🔇 [AudioManager] Barge-in detector active (mode: ${this.echoSuppressionMode})`);
+  }
+
+  /**
+   * Store echo suppression config for later application (when mic sample rate is known).
+   */
+  setEchoSuppressionConfig(config: EchoSuppressionConfig | undefined): void {
+    this.pendingEchoConfig = config;
+  }
+
+  /**
+   * Encode an Int16Array to base64 string (for flushing preroll to provider).
+   */
+  private encodeInt16ToBase64(int16: Int16Array): string {
+    const bytes = new Uint8Array(int16.buffer, int16.byteOffset, int16.byteLength);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary);
   }
 }

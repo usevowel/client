@@ -253,6 +253,10 @@ export class Vowel {
       },
     });
     
+    if (config.echoSuppression) {
+      this.audioManager.setEchoSuppressionConfig(config.echoSuppression);
+    }
+    
     // Initialize TypingSoundManager if enabled
     const typingSoundsConfig = config.typingSounds;
     if (typingSoundsConfig?.enabled !== false) {
