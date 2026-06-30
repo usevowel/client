@@ -1532,7 +1532,16 @@ export class AudioManager {
     
     this.enhancedVADManager = vadManager;
     this.frameTimestamp = 0; // Reset timestamp when VAD manager changes
-    
+
+    if (vadManager) {
+      const mode = vadManager.getMode();
+      if ((mode === 'server_vad' || mode === 'semantic_vad') && this.bargeInDetector) {
+        this.bargeInDetector = null;
+        this.echoSuppressionMode = 'off';
+        console.log('🔇 [AudioManager] Client barge-in disabled: server-side VAD active (engine handles barge-in)');
+      }
+    }
+
     if (vadManager) {
       console.log("✅ [AudioManager] EnhancedVADManager connected for frame processing");
       
@@ -1628,6 +1637,13 @@ export class AudioManager {
     }
 
     this.echoSuppressionMode = config.mode ?? 'auto';
+
+    if (this.echoSuppressionMode === 'server') {
+      this.bargeInDetector = null;
+      console.log('🔇 [AudioManager] Echo suppression: engine-side only (mode: server)');
+      return;
+    }
+
     const handlesAudioInternally = this.providerRef?.handlesAudioInternally() ?? false;
 
     // For WebRTC providers (OpenAI/Grok), client-side barge-in is limited

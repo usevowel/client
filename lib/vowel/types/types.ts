@@ -835,6 +835,8 @@ export interface EchoSuppressionConfig {
   prerollSeconds?: number;
   /** Playback reference buffer size in seconds @default 8.0 */
   referenceSeconds?: number;
+  /** When true, the user is on headphones (no acoustic echo path); sent to engine via session.update so the server-side barge-in detector is skipped to avoid false positives. */
+  headphones?: boolean;
 }
 
 /**

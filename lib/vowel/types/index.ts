@@ -16,6 +16,7 @@ export type {
   VowelPrimeEnvironment,
   VowelConfig,
   VowelClientConfig,
+  EchoSuppressionConfig,
   NavigationAdapter,
   AutomationAdapter,
   AutomationSearchOptions,

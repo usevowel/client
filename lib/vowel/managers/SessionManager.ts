@@ -19,7 +19,7 @@
  * @license Proprietary
  */
 
-import type { VowelRoute, VowelVoiceConfig } from "../types";
+import type { VowelRoute, VowelVoiceConfig, EchoSuppressionConfig } from "../types";
 import { VOWEL_TOKEN_ENDPOINT } from "../types/constants";
 import type { ToolContext } from "./ToolManager";
 import { ToolManager } from "./ToolManager";
@@ -90,6 +90,7 @@ export interface SessionConfig {
   voiceConfig?: VowelVoiceConfig;
   /** Hidden runtime configuration bag for provider-specific overrides. */
   _voiceConfig?: VowelVoiceConfig;
+  echoSuppression?: EchoSuppressionConfig;
   language?: string;
   initialGreetingPrompt?: string;
   turnDetectionPreset?: 'aggressive' | 'balanced' | 'conservative';
@@ -1577,6 +1578,7 @@ export class SessionManager {
         vowelPrimeConfig: this.getHiddenVoiceConfig()?.vowelPrimeConfig,
         turnDetection: this.getHiddenVoiceConfig()?.turnDetection, // Pass turnDetection config to provider
         audioConfig: this.getHiddenVoiceConfig()?.audioConfig,
+        echoSuppression: this.config.echoSuppression,
       };
       const providerLifecycleId = ++this.providerLifecycleId;
 
